@@ -1,0 +1,40 @@
+name: A comic site doesn't work
+description: Navigation isn't found, pages crawl wrong, or panels split badly.
+labels: [compatibility]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check [Limitations](../blob/main/README.md#limitations) first - sites that need JavaScript or sit behind bot protection can't work.
+        **Please don't upload images or screenshots of comic pages** - link to the page instead.
+  - type: input
+    id: url
+    attributes:
+      label: Comic page URL
+      description: A page where the problem happens. Leave empty if you'd rather not name the comic, and describe the page below instead.
+      placeholder: https://...
+  - type: dropdown
+    id: area
+    attributes:
+      label: What goes wrong?
+      options:
+        - Select Elements can't pick an element
+        - Next/Back/First/Latest go to the wrong page or nowhere
+        - New pages aren't found
+        - A page is split wrongly (panels cut, merged, or extra slivers)
+        - A page isn't split although it has clear gutters
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What did you expect, and what happened instead? Without a URL, also describe the page - for splitting problems the layout (panels, gutters, frames, title bars), for navigation problems what the links look like.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: e.g. a commit hash or "latest main"

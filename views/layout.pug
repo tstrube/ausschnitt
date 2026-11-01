@@ -1,0 +1,45 @@
+doctype html
+html
+    head
+        title Ausschnitt
+        meta(charset='UTF-8')
+        meta(name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover')
+        meta(name='theme-color' content='#212529')
+        link(rel='icon' type='image/svg+xml' href='/favicon.svg')
+        //- Installable app (PWA) - see public/manifest.webmanifest and public/sw.js.
+        link(rel='manifest' href='/manifest.webmanifest')
+        link(rel='apple-touch-icon' href='/icons/apple-touch-icon.png')
+        meta(name='apple-mobile-web-app-title' content='Ausschnitt')
+        meta(name='apple-mobile-web-app-capable' content='yes')
+        meta(name='mobile-web-app-capable' content='yes')
+        meta(name='apple-mobile-web-app-status-bar-style' content='black')
+        //- Runs synchronously, before Bootstrap's CSS paints anything, so the
+        //- page never flashes the wrong theme on load.
+        script.
+            (function () {
+                var stored = localStorage.getItem('theme') || 'system';
+                var resolved = stored === 'system'
+                    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                    : stored;
+                document.documentElement.setAttribute('data-bs-theme', resolved);
+            })();
+        link(rel='stylesheet' href='/vendor/bootstrap/bootstrap.min.css')
+        link(rel='stylesheet' href='/css/toast.css')
+        link(rel='stylesheet' href='/css/buttons.css')
+        block head
+    body
+        script(src='/js/toast.js')
+        script(src='/js/theme.js')
+        script(src='/js/pwa.js')
+        block body
+            nav.navbar.navbar-dark.bg-dark.mb-4
+                .container-fluid
+                    .d-flex.gap-2.align-items-center
+                        a.btn.btn-outline-light.btn-icon(href='/' aria-label='Home' title='Home') 🏠
+                        a.btn.btn-outline-light.btn-icon(href='/bookmarks' aria-label='Bookmarks' title='Bookmarks') 🔖
+                    .d-flex.gap-2.align-items-center
+                        include includes/account-buttons
+                        a.btn.btn-outline-light.btn-icon(href='/settings' aria-label='Settings' title='Settings') ⚙
+                        a.btn.btn-outline-light.btn-icon(href='/manual' aria-label='Manual' title='Manual') ❓
+            .container
+                block content

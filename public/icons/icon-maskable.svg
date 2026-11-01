@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" fill="#212529"/>
+  <g transform="translate(32 32) scale(0.72) translate(-32 -32)"><path d="M14 20V17A3 3 0 0 1 17 14H20M44 14H47A3 3 0 0 1 50 17V20M50 44V47A3 3 0 0 1 47 50H44M20 50H17A3 3 0 0 1 14 47V44M24.667 14H29.667M24.667 50H29.667M14 24.667V29.667M50 24.667V29.667M34.333 14H39.333M34.333 50H39.333M14 34.333V39.333M50 34.333V39.333" fill="none" stroke="#ffffff" stroke-width="4"/></g>
+</svg>

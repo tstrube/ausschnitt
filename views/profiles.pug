@@ -1,0 +1,8 @@
+extends layout
+
+block content
+    h1 Who's logging in?
+
+    .d-flex.flex-wrap.gap-3
+        each user in users
+            a.btn.btn-outline-light.btn-lg(href=`/login?user=${encodeURIComponent(user.username)}`)= user.username

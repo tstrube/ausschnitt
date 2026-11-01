@@ -1,0 +1,50 @@
+extends layout
+
+block head
+    link(rel='stylesheet' href='/css/reader.css')
+
+block body
+    .reader-shell
+        .reader-topbar
+            .reader-topbar-group
+                a.btn.btn-outline-light.btn-icon(href='/' aria-label='Home' title='Home') 🏠
+                button#bookmarksBtn.btn.btn-outline-light.btn-icon(type='button' title='Bookmarks') 🔖
+                button#historyBtn.btn.btn-outline-light.btn-icon(type='button' title='Resume history') 🕘
+            .reader-topbar-group
+                button#ignoreBtn.btn.btn-outline-light.btn-icon(type='button' title="Ignore this page (skips it during Next/Back - undo right after, or later from this comic's Settings page)") 🚫
+                a.btn.btn-outline-light.btn-icon(href=`/comics/${comic.id}/settings` aria-label='Comic settings' title="This comic's settings & ignored pages") ⚙
+                a.btn.btn-outline-light.btn-icon(href='/manual' aria-label='Manual' title='Manual') ❓
+        .reader-history-panel#bookmarksPanel
+            strong.small Bookmarks
+            form#saveBookmarkForm.d-flex.gap-1.mt-2.mb-2
+                input.form-control.form-control-sm#bookmarkNameInput(type='text' placeholder='Bookmark name' required)
+                button.btn.btn-sm.btn-primary(type='submit') Save
+            ul#bookmarksList.list-unstyled.small
+            a.small(href='/bookmarks') Manage all bookmarks →
+        .reader-history-panel#historyPanel
+            strong.small Resume history
+            ul#historyList.list-unstyled.small
+            a.small(href='/manual#bookmarks') What's this? →
+        .reader-resume-banner#resumeBanner(class=atBookmark ? '' : 'visible')
+            span Jumped away from your last spot.
+            button#resumeBtn.btn.btn-sm.btn-light(type='button') Resume
+            button#setBookmarkBtn.btn.btn-sm.btn-outline-light(type='button') Save Resume Point
+        .reader-image-wrap#imageWrap
+            img#comicImage(src=imageUrl, alt='Comic panel')
+            .reader-loading#loadingIndicator
+                .reader-spinner
+        .reader-controls
+            button#firstBtn.btn.btn-outline-light(aria-label='First page') ⏮
+            button#backBtn.btn.btn-outline-light(aria-label='Back') ◀
+            button#pageFirstBtn.btn.btn-outline-light(aria-label='First panel of this page') ⇤
+            button#nextBtn.btn.btn-outline-light(aria-label='Next') ▶
+            button#latestBtn.btn.btn-outline-light(aria-label='Latest page') ⏭
+
+    script(src='/js/reader.js')
+    script.
+        const comicId = !{comic.id};
+        const comicTitle = !{JSON.stringify(comic.title)};
+        const initialBookmarkHistory = !{JSON.stringify(bookmarkHistory)};
+        const initialBookmarks = !{JSON.stringify(bookmarks)};
+        const initialPanelId = !{panel.id};
+        const initialAtBookmark = !{atBookmark ? 'true' : 'false'};

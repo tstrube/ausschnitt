@@ -1,0 +1,24 @@
+extends layout
+
+block head
+    link(rel='stylesheet' href='/css/select.css')
+
+block body
+    .select-shell
+        .select-topbar
+            a.btn.btn-outline-light.btn-icon(href='/' aria-label='Home' title='Home') 🏠
+            span.select-title Select Elements for "#{comic.title}"
+            include includes/account-buttons
+            a.btn.btn-outline-light.btn-icon(href='/settings' aria-label='Settings' title='Settings') ⚙
+        .select-controls
+            p#currentStepLabel.select-step
+            .d-flex.flex-wrap.align-items-center.gap-2
+                button#browseModeBtn.btn.btn-sm.btn-outline-light(type='button') Browse Site
+                span.small.select-hint If Next/Latest are disabled, use Browse mode to reach an older page first.
+            button#retryBtn.btn.btn-sm.btn-secondary.mt-2(style='display:none') Retry Scan with Longer Timeout
+
+        iframe#comicFrame.select-frame(src=`/proxy?url=${encodeURIComponent(comic.url)}`)
+
+    script(src="/js/selectorOverlay.js")
+    script.
+        const comicId = !{comic.id};

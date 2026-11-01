@@ -1,0 +1,20 @@
+# Dependencies and build output
+/node_modules/
+/dist/
+*.tsbuildinfo
+
+# Runtime data (database, downloaded panels)
+/data/
+
+# Environment and local tool settings
+.env
+.env.*
+.claude/settings.local.json
+.vscode/
+.idea/
+
+# Logs and OS files
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db

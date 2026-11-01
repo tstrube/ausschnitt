@@ -1,0 +1,229 @@
+html, body {
+    height: 100%;
+    margin: 0;
+    overscroll-behavior: none;
+}
+
+/* Theme-reactive otherwise (light mode keeps Bootstrap's normal light
+   background), but Bootstrap's own dark-mode body color (--bs-body-bg,
+   #212529 - the same gray as the header chrome) reads as too bright for
+   actually reading comic panels against in a dark room - force true black
+   specifically for dark mode here, without touching light mode. */
+html[data-bs-theme="dark"] body {
+    background: #000;
+}
+
+.reader-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    width: 100dvw;
+}
+
+/* No comic title up here - six buttons leave it no room on a phone.
+   Laid out like the navbar on every other page: a left and a right
+   group of fixed-width .btn-icon buttons (buttons.css), same padding, same
+   height. On a screen too narrow for all six at full width they shrink
+   evenly instead of overflowing. */
+.reader-topbar {
+    display: flex;
+    justify-content: space-between;
+    gap: .5rem;
+    padding: .5rem .75rem;
+    background: #212529;
+    color: #eee;
+    flex: 0 0 auto;
+}
+
+.reader-topbar-group {
+    display: flex;
+    flex: 0 1 auto;
+    min-width: 0;
+    gap: .5rem;
+}
+
+/* Keeps .btn-icon's fixed width (the groups size themselves from it), but
+   may shrink below it when the row doesn't fit. */
+.reader-topbar .btn-icon {
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+/* The bottom controls share the row evenly - same height as the top bar
+   (Bootstrap's regular button), horizontal padding dropped since each
+   button's width comes from its share of the row. */
+.reader-controls .btn {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* While armed, Ignore shows "OK?" - short enough to fit the button's normal
+   icon-sized slot at the normal font size, so nothing in the row moves. */
+.reader-topbar #ignoreBtn {
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+/* Toasts (e.g. Ignore's Undo) sit below the reader's top bar instead of
+   over its buttons: bar = .5rem padding top and bottom + one regular
+   button (2.25rem + 2px border), plus a .5rem gap. */
+#toast-container {
+    top: calc(3.75rem + 2px);
+}
+
+.reader-history-panel {
+    display: none;
+    flex-direction: column;
+    padding: .6rem .75rem;
+    background: #212529;
+    color: #eee;
+    flex: 0 0 auto;
+    max-height: 40vh;
+    overflow-y: auto;
+}
+
+.reader-history-panel.visible {
+    display: flex;
+}
+
+.reader-history-panel ul {
+    margin: 0;
+}
+
+.reader-resume-banner {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: .5rem .75rem;
+    padding: .4rem .75rem;
+    background: #2d5bda;
+    color: #fff;
+    font-size: .85rem;
+    flex: 0 0 auto;
+}
+
+.reader-resume-banner.visible {
+    display: flex;
+}
+
+/* Scroll reader: the feed plus the resume banner floating over its top
+   edge (see reader-scroll.pug) - showing/hiding the banner never changes
+   the feed's size or position. */
+.reader-feed-area {
+    flex: 1 1 auto;
+    min-height: 0;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.reader-feed-area .reader-resume-banner {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 2;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .35);
+}
+
+.reader-image-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+    /* Allow native pinch-zoom + panning instead of blocking it - small
+       source panels look soft when stretched to fill a high-DPI phone
+       screen, and zooming in on demand is the standard fix for that
+       ("manipulation" permits pan+pinch-zoom, only skips the double-tap-
+       to-zoom delay, which isn't used here). */
+    touch-action: manipulation;
+}
+
+#comicImage {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.reader-loading {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, .35);
+}
+
+.reader-loading.visible {
+    display: flex;
+}
+
+.reader-spinner {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: .3rem solid rgba(255, 255, 255, .3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: reader-spin .8s linear infinite;
+}
+
+@keyframes reader-spin {
+    to { transform: rotate(360deg); }
+}
+
+.reader-scroll-feed {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .25rem;
+    position: relative;
+    /* readerScroll.js keeps the reading position steady itself (known
+       image sizes + the top spacer) - the browser's own scroll anchoring
+       would only adjust on top of that, and only in some browsers. */
+    overflow-anchor: none;
+}
+
+/* height:auto plus the width/height attributes the server sends lets the
+   browser reserve each panel's final height before the image loads. */
+.reader-scroll-panel {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+/* Blank runway above the panels: earlier panels are inserted into it so
+   nothing on screen moves (see RUNWAY_PX in readerScroll.js). */
+.reader-scroll-spacer {
+    flex: 0 0 auto;
+    width: 100%;
+}
+
+.reader-scroll-sentinel {
+    flex: 0 0 auto;
+    height: 1px;
+    width: 100%;
+}
+
+.reader-controls {
+    display: flex;
+    gap: .5rem;
+    padding: .5rem .75rem;
+    padding-bottom: max(.5rem, env(safe-area-inset-bottom));
+    background: #212529;
+    flex: 0 0 auto;
+}
+

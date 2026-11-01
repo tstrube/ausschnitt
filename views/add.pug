@@ -1,0 +1,16 @@
+extends layout
+
+block content
+    h1 Add a New Comic
+
+    form(method='POST' action='/add')
+        .mb-3
+            label.form-label(for='url') Comic URL
+            input.form-control(type='text' name='url', placeholder='example.com/comic' required)
+            p.form-text.text-muted.mb-0 https:// is detected automatically if you leave it out.
+
+        .mb-3
+            label.form-label(for='title') Comic Name
+            input.form-control(type='text' name='title', required)
+
+        button.btn.btn-primary(type='submit') Add Comic

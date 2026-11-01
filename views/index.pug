@@ -1,0 +1,24 @@
+extends layout
+
+block content
+    h1 Comic List
+
+    a.btn.btn-primary.mb-3(href='/add') + Add Comic
+
+    if comics.length
+        ul.list-group
+            each comic in comics
+                li.list-group-item.d-flex.flex-wrap.justify-content-between.align-items-center.gap-2
+                    a.flex-grow-1(href=comic.selector_image ? `/reader/${comic.id}` : `/select/${comic.id}`)
+                        div #{comic.title}
+                        span.text-muted.small #{usageByComic[comic.id]} used
+                    a.btn.btn-sm.btn-outline-secondary(href=`/comics/${comic.id}/settings` title='Reading mode, resume history, and ignored pages for this comic') Settings
+                    if !showAccountSwitch
+                        button.btn.btn-sm.btn-outline-warning.js-clear-btn(type='button' data-clear-url=`/clear/${comic.id}` data-clear-label=`Clear downloaded pages for "${comic.title}"` title='Wipe downloaded pages/panels to reclaim space or force a re-crawl - keeps the comic itself, no need to redo Select Elements') Clear
+                    button.btn.btn-sm.btn-outline-danger.js-delete-btn(type='button' data-delete-url=`/delete/${comic.id}` title='Remove this comic from your list - if shared with other accounts, it stays for them until everyone removes it') Delete
+
+    else
+        p No comics yet.
+
+    script(src='/js/twoClickConfirm.js')
+    script(src='/js/comicList.js')
