@@ -14,6 +14,7 @@ name: ausschnitt
 services:
   ausschnitt:
     build: .
+    pull_policy: build
     image: ausschnitt:latest
     container_name: ausschnitt
     restart: unless-stopped
