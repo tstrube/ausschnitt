@@ -1,0 +1,30 @@
+name: ausschnitt
+
+# Settings can be overridden with environment variables (a `.env` file next
+# to this one, or a Portainer stack's environment variables):
+#   AUSSCHNITT_PORT      host port (default 3333)
+#   AUSSCHNITT_DATA      host folder for the database and panels (default
+#                        ./data); must be writable by UID 1000
+#   BEHIND_HTTPS_PROXY   "true" only behind a TLS-terminating reverse proxy
+#                        that forwards X-Forwarded-Proto: it marks the
+#                        session cookie HTTPS-only and trusts the proxy's
+#                        headers. Over plain HTTP, "true" makes logins
+#                        impossible. (default false)
+
+services:
+  ausschnitt:
+    build: .
+    image: ausschnitt:latest
+    container_name: ausschnitt
+    restart: unless-stopped
+    ports:
+      - "${AUSSCHNITT_PORT:-3333}:3000"
+    volumes:
+      - "${AUSSCHNITT_DATA:-./data}:/app/data"
+    environment:
+      - BEHIND_HTTPS_PROXY=${BEHIND_HTTPS_PROXY:-false}
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

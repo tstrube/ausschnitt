@@ -1,0 +1,31 @@
+extends layout
+
+block head
+    link(rel='stylesheet' href='/css/lists.css')
+
+block content
+    h1 Bookmarks
+
+    if bookmarks.entries.length
+        ul.list-unstyled.small.aligned-rows.aligned-rows-2col
+            each bookmark in bookmarks.entries
+                li
+                    a.text-truncate(href=`/reader/${bookmark.comic_id}/jump/${bookmark.page_id}/${bookmark.panel_id}`)
+                        div= bookmark.name
+                        span.text-muted.small #{bookmark.comic_title} &middot; #{formatDateTime(bookmark.created_at)}
+                    .d-flex.gap-1.align-items-center
+                        form.d-flex.gap-1(method='POST' action=`/bookmarks/${bookmark.id}/rename?page=${page}`)
+                            input.form-control.form-control-sm(type='text' name='name' value=bookmark.name required style='width:10rem;')
+                            button.btn.btn-sm.btn-outline-secondary(type='submit') Rename
+                        button.btn.btn-sm.btn-outline-danger.js-delete-bookmark-btn(type='button' data-delete-url=`/bookmarks/${bookmark.id}/delete?page=${page}`) Delete
+        if bookmarks.total > pageSize
+            nav.d-flex.gap-2.mt-3
+                if page > 1
+                    a.btn.btn-sm.btn-outline-secondary(href=`/bookmarks?page=${page - 1}`) ← Newer
+                if page * pageSize < bookmarks.total
+                    a.btn.btn-sm.btn-outline-secondary(href=`/bookmarks?page=${page + 1}`) Older →
+    else
+        p.text-muted No bookmarks yet - save one from the 🔖 button in the reader.
+
+    script(src='/js/twoClickConfirm.js')
+    script(src='/js/bookmarksManager.js')

@@ -1,0 +1,115 @@
+extends layout
+
+block head
+    link(rel='stylesheet' href='/css/lists.css')
+    link(rel='stylesheet' href='/css/settings.css')
+
+block content
+    a.btn.btn-sm.btn-outline-secondary.mb-3(href=comic.selector_image ? `/reader/${comic.id}` : `/select/${comic.id}`) ← Back to comic
+    h1= comic.title
+
+    //- Plain links rather than Bootstrap's JS tabs (no Bootstrap JS is
+    //- loaded) - the active tab is a query param, so pagination and the
+    //- redirects after Delete/Undo land back on the same tab. Short labels
+    //- with count badges share the row evenly and never wrap.
+    ul.nav.nav-tabs.nav-fill.flex-nowrap.mb-3
+        each t in [['settings', 'General', null], ['history', 'History', resumeHistory.total], ['ignored', 'Ignored', ignored.length]]
+            li.nav-item
+                a.nav-link.text-nowrap.px-2(href=`/comics/${comic.id}/settings?tab=${t[0]}` class=tab === t[0] ? 'active' : '' aria-current=tab === t[0] ? 'page' : false)
+                    | #{t[1]}
+                    if t[2] !== null
+                        span.badge.rounded-pill.text-bg-secondary.ms-1= t[2]
+
+    if tab === 'history'
+        p.text-muted.small #{resumeHistory.total}/#{resumeHistoryCap} checkpoints from "Save Resume Point" in the reader - not the same as your saved #[a(href='/bookmarks') Bookmarks].
+        if resumeHistory.entries.length
+            ul.list-unstyled.small.aligned-rows.aligned-rows-2col
+                each entry in resumeHistory.entries
+                    li
+                        .d-flex.align-items-center.gap-2
+                            span.text-muted #{formatDateTime(entry.created_at)}
+                            span.badge(class=entry.source === 'auto' ? 'bg-secondary' : 'bg-primary')= entry.source === 'auto' ? 'auto-saved' : 'manual'
+                        form(method='POST' action=`/comics/${comic.id}/bookmarks/${entry.id}/delete`)
+                            button.btn.btn-sm.btn-outline-danger(type='submit' aria-label='Delete checkpoint' title='Delete checkpoint') ×
+            if resumeHistory.total > pageSize
+                nav.d-flex.gap-2.mb-3
+                    if resumeHistoryPage > 1
+                        a.btn.btn-sm.btn-outline-secondary(href=`/comics/${comic.id}/settings?tab=history&resumeHistoryPage=${resumeHistoryPage - 1}`) ← Newer
+                    if resumeHistoryPage * pageSize < resumeHistory.total
+                        a.btn.btn-sm.btn-outline-secondary(href=`/comics/${comic.id}/settings?tab=history&resumeHistoryPage=${resumeHistoryPage + 1}`) Older →
+        else
+            p.text-muted.small No resume checkpoints yet - use "Save Resume Point" in the reader.
+    else if tab === 'ignored'
+        if ignored.length
+            .btn-group.btn-group-sm.mb-3(role='group' aria-label='Sort ignored pages')
+                each s in ignoredSorts
+                    a.btn(href=`/comics/${comic.id}/settings?tab=ignored&sort=${s[0]}` class=ignoredSort === s[0] ? 'btn-secondary' : 'btn-outline-secondary' aria-current=ignoredSort === s[0] ? 'true' : false)= s[1]
+            //- Full URL, wrapped rather than truncated (you need to see which
+            //- page it actually is); the date stays on one line beside it.
+            ul.list-unstyled.small.aligned-rows.aligned-rows-3col
+                each page in ignored
+                    li
+                        a.text-break(href=page.original_url target='_blank' rel='noopener noreferrer') #{page.original_url}
+                        span.text-muted.text-nowrap #{formatDateTime(page.ignored_at)}
+                        form(method='POST' action=`/undo-ignore/${page.id}`)
+                            input(type='hidden' name='sort' value=ignoredSort)
+                            button.btn.btn-sm.btn-outline-secondary(type='submit') Undo
+        else
+            p.text-muted.small No ignored pages.
+    else
+        //- Saves on any change (no Save button), like the global Settings
+        //- page; every field is in the one form, so each submit sends them all.
+        form(method='POST' action=`/comics/${comic.id}/settings` onchange='this.submit()')
+            .settings-group-title Reading
+            .list-group
+                .list-group-item.settings-row
+                    label.settings-label(for='reading-mode') Reading mode
+                        span.settings-hint Default: #{globalReadingMode === 'paged' ? 'Paged' : 'Endless Scroll'}
+                    select.form-select.form-select-sm#reading-mode(name='reading_mode')
+                        option(value='' selected=!userComic.reading_mode) Default
+                        option(value='scroll' selected=userComic.reading_mode === 'scroll') Endless Scroll
+                        option(value='paged' selected=userComic.reading_mode === 'paged') Paged
+                .list-group-item.settings-row
+                    label.settings-label(for='scroll-nav') Endless scroll bottom bar
+                        span.settings-hint First/Latest buttons · default: #{globalHideScrollNav ? 'Hide' : 'Show'}
+                    select.form-select.form-select-sm#scroll-nav(name='scroll_nav')
+                        option(value='' selected=userComic.hide_scroll_nav === null) Default
+                        option(value='show' selected=userComic.hide_scroll_nav === false) Show
+                        option(value='hide' selected=userComic.hide_scroll_nav === true) Hide
+                //- Shared by every subscriber, so only an admin changes it;
+                //- everyone else sees it.
+                if user.is_admin
+                    .list-group-item.settings-row
+                        label.settings-label(for='reading-direction') Panel order
+                            span.settings-hint Columns read left to right, or right to left (manga) · for everyone reading this comic
+                        select.form-select.form-select-sm#reading-direction(name='reading_direction')
+                            option(value='ltr' selected=comic.reading_direction === 'ltr') Left to right
+                            option(value='rtl' selected=comic.reading_direction === 'rtl') Right to left
+                else
+                    .list-group-item.settings-row
+                        span.settings-label Panel order
+                            span.settings-hint Set when the comic was added · an admin can change it
+                        span.text-muted.small= comic.reading_direction === 'rtl' ? 'Right to left' : 'Left to right'
+                label.list-group-item.settings-row(for='start-at-first')
+                    span.settings-label Back starts at first panel
+                        span.settings-hint Panel-by-panel: going Back onto the previous page starts at its first panel instead of its last
+                    .form-check.form-switch
+                        input.form-check-input(type='checkbox' role='switch' name='start_at_first_panel' id='start-at-first' checked=userComic.start_at_first_panel)
+
+            .settings-group-title Notifications
+            .list-group.mb-3
+                label.list-group-item.settings-row(for='notify-new-pages')
+                    span.settings-label Notify me about new pages
+                        span.settings-hint On devices where notifications are turned on in Settings
+                    .form-check.form-switch
+                        input.form-check-input(type='checkbox' role='switch' name='notify_new_pages' id='notify-new-pages' checked=userComic.notify_new_pages)
+                .list-group-item.settings-row
+                    label.settings-label(for='notification-target') Tapping a notification opens
+                        span.settings-hint Default: #{user.notification_target === 'latest' ? 'Newest page' : 'Resume point'}
+                    select.form-select.form-select-sm#notification-target(name='notification_target')
+                        option(value='' selected=userComic.notification_target === null) Default
+                        option(value='resume' selected=userComic.notification_target === 'resume') Resume point
+                        option(value='latest' selected=userComic.notification_target === 'latest') Newest page
+            noscript
+                button.btn.btn-sm.btn-primary(type='submit') Save
+        p.small.text-muted "Default" follows your #[a(href='/settings') global settings].

@@ -1,0 +1,69 @@
+/* Phone-style settings rows (global /settings and a comic's Settings tab):
+   label on the left, its control right-aligned, every dropdown the same
+   width so the right edge reads as one column, checkboxes as switches.
+   Groups get a small uppercase heading, like a phone's settings screen. */
+.settings-group-title {
+    font-size: .75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--bs-secondary-color);
+    margin: 1.5rem 0 .4rem .25rem;
+}
+
+.settings-group-title:first-of-type {
+    margin-top: 0;
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+}
+
+.settings-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+}
+
+.settings-hint {
+    display: block;
+    font-size: .8rem;
+    color: var(--bs-secondary-color);
+}
+
+/* One width for every dropdown, capped so a narrow phone still leaves the
+   label at least half the row. */
+.settings-row .form-select {
+    flex: 0 0 auto;
+    width: min(13rem, 50%);
+}
+
+.settings-row .settings-value {
+    flex: 0 0 auto;
+    text-align: right;
+}
+
+/* A bare switch at the row's right edge: Bootstrap's .form-switch normally
+   floats its input into left padding beside an inline label. */
+.settings-row .form-switch {
+    flex: 0 0 auto;
+    padding-left: 0;
+    margin: 0;
+    min-height: 0;
+}
+
+.settings-row .form-switch .form-check-input {
+    float: none;
+    margin: 0;
+    width: 2.75em;
+    height: 1.5em;
+    cursor: pointer;
+}
+
+/* The whole row toggles its switch (it's the switch's <label>). */
+label.settings-row {
+    cursor: pointer;
+}

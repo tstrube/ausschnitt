@@ -1,0 +1,13 @@
+node_modules
+dist
+data
+.git
+.claude
+.vscode
+.idea
+*.log
+.env
+.env.*
+**/CLAUDE.md
+.github
+docs

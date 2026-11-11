@@ -1,0 +1,262 @@
+extends layout
+
+block head
+    link(rel='stylesheet' href='/css/manual.css')
+
+block content
+    h1 Ausschnitt Manual
+
+    p.lead.
+        Ausschnitt is a personal webcomic reader. Point it at a webcomic's own
+        site once, and it crawls new pages for you, automatically crops each
+        page into individual panels, and shows them sized for your screen -
+        as one continuous scroll or one panel at a time - instead of a whole
+        strip zoomed out on a small screen.
+
+    .manual-toc.mb-4
+        strong On this page:
+        ul
+            li: a(href='#adding') Adding a comic
+            li: a(href='#reading') Reading
+            li: a(href='#icons') Icons
+            li: a(href='#bookmarks') Your reading position, bookmarks &amp; ignoring pages
+            li: a(href='#splitting') How automatic panel splitting works
+            li: a(href='#settings') Settings
+            li: a(href='#managing') Managing comics
+            li: a(href='#install') Installing it as an app
+            li: a(href='#notifications') New-page notifications
+
+    h2#adding Adding a comic
+    p.
+        From the home page, click #[strong + Add Comic] and give it the
+        comic's URL, a name and its #[strong panel order] - left to right,
+        or right to left for manga. You'll land on the
+        #[strong Select Elements] screen next - the one-time setup step that
+        teaches Ausschnitt how to find things on that comic's own pages. (If
+        another account on this server already added the same comic - even
+        written with or without #[code https://], #[code www.] or a final
+        #[code /] - you share it: its name and panel order stay, and you
+        skip this step and go straight to the reader.)
+    p.
+        The comic's page loads in a preview below. A label above it tells
+        you what to click next - in order: the #[strong comic image], then
+        the #[strong Next], #[strong Back], #[strong First], and
+        #[strong Latest] page links/buttons.
+    p.
+        Each click is recorded as a small "fingerprint" (tag, class, position
+        in the page) rather than a fixed link, so navigation keeps working
+        even after the comic's site gets a minor redesign.
+    p.
+        #[strong Next] and #[strong Latest] are often disabled on the
+        comic's own newest page (there's nothing to go to yet). If clicking
+        one says it doesn't lead anywhere, tap #[strong Browse Site], click
+        through to an older page, and select it from there - your progress
+        so far is kept.
+    p.
+        Once all five are selected, the comic is saved automatically and you
+        land straight in the reader.
+
+    h2#reading Reading
+    p.
+        Open a comic from the home page to continue at your saved reading
+        position (or the very first panel, the first time). New pages are
+        fetched and split into panels automatically the first time you reach
+        them, so moving past a page Ausschnitt hasn't seen yet takes a moment
+        longer than usual.
+    p.
+        There are two ways to read. The default is set in #[strong Settings]
+        (⚙ in the top bar, #[strong Default reading mode]); any comic can override it from its
+        #[strong Settings].
+    h3.h5 Endless scroll (default)
+    ul
+        li Panels are shown one under the other - just scroll. More load automatically as you near either end.
+        li Your position is saved as you scroll, and again when you leave the page or switch apps.
+        li The bottom bar has #[strong First] ⏮ and #[strong Latest] ⏭. It can be hidden for more room - for every comic from #[strong Settings] (#[strong Endless scroll bottom bar]), or per comic from its #[strong Settings].
+    h3.h5 Panel-by-panel
+    ul
+        li One panel at a time, sized to fill the screen. Pinch to zoom in.
+        li #[strong Swipe] left/right on the image, or use the bottom bar: First ⏮ / Back ◀ / first panel of this page ⇤ / Next ▶ / Latest ⏭.
+        li Your position is saved with every Next/Back.
+
+    h2#icons Icons
+    p.
+        The same icon always means the same thing, whether it's in the
+        reader's top bar or the bar at the top of every other page:
+    ul
+        li 🏠 #[strong Home] - back to your comic list.
+        li.
+            🔖 #[strong Bookmarks] - in the reader, save the panel you're on
+            under a name, or jump to one you saved earlier for this comic;
+            elsewhere, the full bookmarks manager.
+        li.
+            🕘 #[strong Resume history] - reader only; this comic's recent
+            "Save Resume Point" checkpoints.
+        li.
+            🚫 #[strong Ignore] - reader only; hides the page you're looking at
+            from now on. Tap once, then tap #[strong OK?] within 3
+            seconds. A popup with #[strong Undo] appears right after, in case
+            it was the wrong page.
+        li.
+            ⚙ #[strong Settings] - in the reader, this comic's reading mode,
+            resume history, and ignored pages; elsewhere, your general
+            settings (theme, reading defaults, notifications, disk space).
+        li 👥 #[strong Admin] - manage user accounts. Only with multiple accounts, only for admins, and never in the reader.
+        li 🚪 #[strong Log out] - only with multiple accounts, and never in the reader.
+        li ❓ #[strong Manual] - this page.
+
+    h2#bookmarks Your reading position, bookmarks &amp; ignoring pages
+    p.
+        Ausschnitt keeps one saved reading position per comic - where you
+        continue next time. Reading normally moves it along with you; there's
+        nothing to click.
+    p.
+        Jumping somewhere else - #[strong First], #[strong Latest], a
+        bookmark, or an old resume checkpoint - does #[em not] move your
+        saved position; it's just a look around. While you're away from it,
+        a banner says #[em "Jumped away from your last spot"] with two
+        buttons: #[strong Resume] takes you back, and
+        #[strong Save Resume Point] makes where you are now your new saved
+        position. Reading your way back onto your saved position hides the
+        banner too, and saving carries on as normal from there.
+    p.
+        Each #[strong Save Resume Point] also adds a checkpoint to this
+        comic's #[strong resume history] (the 🕘 panel), which keeps the 10
+        most recent. The position being replaced is added as well, so a
+        save never loses where you were before. Tapping a checkpoint only
+        takes a look, like a jump; the full list, with delete, is on the
+        #[strong History] tab of the comic's #[strong Settings] page.
+    p.
+        #[strong Bookmarks] are separate from all of that: named, permanent
+        spots you create yourself, as many as you like. Open the 🔖 panel in
+        the reader to save the panel you're on (it suggests a name, which you
+        can change) or jump to one of this comic's bookmarks. To rename or
+        delete bookmarks across every comic, use the
+        #[a(href='/bookmarks') Bookmarks] page.
+    p.
+        #[strong Ignore] a page you never want to see again (a filler page,
+        an arc you're skipping): it disappears from the scroll feed, and
+        Next/Back step over it. Ignored the wrong one? Tap #[strong Undo] on
+        the popup right after - the page comes back and you're returned to
+        it. Ignored pages can also be restored any time from the
+        #[strong Ignored] tab of the comic's #[strong Settings] page.
+
+    h2#splitting How automatic panel splitting works
+    p.
+        After a page's image is downloaded, Ausschnitt looks for a real panel
+        grid on it and, if it's confident, crops each panel out into its own
+        image - that's the "Ausschnitt" (German for "cutout") the app is
+        named after. It isn't guessing panel positions from a template; it
+        actually examines the downloaded pixels every time, so it copes with
+        different comics (and different eras of the #[em same] comic) having
+        completely different layouts.
+    p.
+        The examples below use plain numbered boxes instead of a real comic,
+        run through the exact same detector the app uses on real pages.
+
+    //- Original on the left, the cut-out panels on the right - stacked in
+    //- reading order, each at the (half as wide) column's full width, the
+    //- way the reader shows them.
+    mixin splitExample(name, pageAlt, panels, label)
+        .split-example
+            figure.split-page
+                img(src=`/img/manual/${name}-page.png` alt=pageAlt)
+                figcaption Downloaded page
+            .split-arrow(aria-hidden='true')
+                svg(viewBox='0 0 40 24' width='40' height='24')
+                    line(x1='2' y1='12' x2='34' y2='12')
+                    polyline(points='27,5 35,12 27,19')
+                span= label
+            .split-panels
+                each alt, i in panels
+                    figure
+                        img(src=`/img/manual/${name}-panel${i + 1}.png` alt=alt)
+
+    h3 A clean grid
+    p.text-muted.small Four evenly-spaced panels with plain white gutters between them - the common case.
+    +splitExample('grid2x2', 'A page with a 2x2 grid of numbered panels', ['Panel 1', 'Panel 2', 'Panel 3', 'Panel 4'], '4 panels')
+
+    h3 An irregular grid
+    p.text-muted.small Panels don't have to be the same size or line up into a neat table - two panels on top, one wide panel underneath.
+    +splitExample('irregular', 'A page with two panels on top and one wide panel below', ['Panel 1', 'Panel 2', 'Panel 3'], '3 panels')
+
+    h3 When it's not confident: left whole
+    p.text-muted.small.
+        A divider only counts if it's the same color as the page's own
+        background - a plain gutter. A solid line drawn directly between two
+        panels with no background gap around it (common in hand-inked
+        comics) is a different color, so it isn't trusted as a divider even
+        though it's obviously two panels to a human eye. More generally,
+        whenever a page doesn't look like a clear, confident grid, Ausschnitt
+        leaves it as a single panel rather than guessing - an unsplit page is
+        a minor inconvenience; a wrong split (cutting through a face or a
+        speech bubble) is a much worse one, so the detector always fails
+        toward "do nothing" instead of "guess."
+    +splitExample('fallback', 'Two panels separated only by a drawn black line with no background gap around it', ['Left unsplit as one panel'], 'left whole')
+
+    h2#settings Settings
+    p.
+        There are two kinds of settings: your general #[a(href='/settings') Settings],
+        which apply everywhere, and each comic's own settings, which can
+        override some of them for just that comic. Both save as soon as you
+        change something - there's no Save button.
+    h3.h5 General settings
+    p.
+        Open them with ⚙ in the top bar of any page except the reader (in the
+        reader, ⚙ opens that comic's settings instead).
+    ul
+        li #[strong Theme] - System (follows your device), Light or Dark. Remembered per device, so your phone and computer can differ.
+        li #[strong Default reading mode] - Endless Scroll or Paged (panel-by-panel), for every comic that doesn't choose its own.
+        li #[strong Endless scroll bottom bar] - show or hide the First ⏮ / Latest ⏭ bar in endless scroll.
+        li #[strong 🔔 New-page notifications], #[strong Check for new pages] and #[strong Tapping a notification opens] - see #[a(href='#notifications') New-page notifications].
+        li #[strong Storage] - how much space your comics use and how much is left on the server, plus #[strong Clear all] (single account only, see #[a(href='#managing') Managing comics]).
+    h3.h5 A comic's settings
+    p.
+        Open them with ⚙ in the reader, or the comic's #[strong Settings]
+        button on the home page. Three tabs:
+    ul
+        li.
+            #[strong General] - reading mode, endless scroll bottom bar,
+            whether going #[strong Back] onto the previous page (panel-by-panel)
+            starts at its first panel or its last, whether to be notified about
+            this comic's new pages, and where tapping its notification takes
+            you. #[strong Default] follows your general settings - the hint
+            under each setting shows what that currently is.
+        li #[strong History] - this comic's resume checkpoints; delete any you don't need.
+        li #[strong Ignored] - every page you've ignored, sortable by URL or date (↑/↓); #[strong Undo] brings one back.
+
+    h2#managing Managing comics
+    p On the home page:
+    ul
+        li #[strong Delete] - removes the comic from your list. If other accounts on this server also read it, it stays available for them; its downloaded pages are only removed once nobody has it any more.
+        li #[strong Clear] - deletes a comic's downloaded pages/panels to free space or force a fresh download, but keeps the comic and its Select Elements setup (#[strong Clear all] in #[strong Settings] does this for every comic). Only available with a single account, since other accounts may be reading the same downloads.
+        li each comic's disk usage - #[strong Settings] shows the total and the server's free disk space.
+
+    h2#install Installing it as an app
+    p.
+        Ausschnitt can live on your phone's home screen like an app - full
+        screen, no browser bars, its own icon. No app store is involved, and
+        it updates itself whenever the server does.
+    ul
+        li #[strong iPhone/iPad (Safari)]: tap the Share button, then #[strong Add to Home Screen].
+        li #[strong Android (Chrome)]: open the ⋮ menu, then #[strong Install app] (or #[strong Add to Home screen]).
+    p.
+        The app still needs your Ausschnitt server - it's the same site, just
+        without the browser around it. If the server can't be reached, you'll
+        see a short notice with a #[strong Try again] button instead of a
+        browser error. The installed app keeps its own login, separate from
+        your browser's, so you may need to log in once inside it.
+
+    h2#notifications New-page notifications
+    p.
+        Ausschnitt can check your comics for new pages in the background and
+        send a notification to your phone or computer when one appears.
+    ul
+        li Turn them on per device in #[strong Settings] (#[strong 🔔 New-page notifications] → #[strong Turn on]), then use #[strong Send test] to make sure they arrive.
+        li #[strong Check for new pages] in #[strong Settings] sets how often each comic's site is asked - or #[strong never]. Comics are only checked while at least one device has notifications on.
+        li Mute a single comic with #[strong Notify me about new pages] in that comic's #[strong Settings].
+        li #[strong Tapping a notification opens] chooses where it takes you: your #[strong resume point], or #[strong the newest page] - a jump like ⏭, so your resume point stays where it was until you save a new one. Set your default in #[strong Settings]; any comic can override it in its #[strong Settings].
+    p.
+        Notifications need the server to be reached over #[strong HTTPS]. On an
+        iPhone or iPad, add Ausschnitt to your Home Screen first (see above)
+        and turn them on from the installed app - Safari itself doesn't
+        offer them.

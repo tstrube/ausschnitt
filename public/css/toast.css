@@ -1,0 +1,45 @@
+#toast-container {
+    position: fixed;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    align-items: center;
+    pointer-events: none;
+    width: 100%;
+    padding: 0 1rem;
+    box-sizing: border-box;
+}
+
+.toast-message {
+    background: #212529;
+    color: #fff;
+    padding: .6rem 1rem;
+    border-radius: .5rem;
+    font-size: .9rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .3);
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity .2s ease, transform .2s ease;
+    max-width: 28rem;
+    text-align: center;
+}
+
+.toast-message.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.toast-message.toast-error {
+    background: #b02a37;
+}
+
+/* The container itself lets clicks through to the page; a toast with an
+   action button needs to catch them again. */
+.toast-action {
+    pointer-events: auto;
+    margin-left: .75rem;
+}

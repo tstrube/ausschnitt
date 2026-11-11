@@ -1,0 +1,69 @@
+extends layout
+
+block content
+    h1 Manage Users
+
+    if error
+        .alert.alert-danger= error
+
+    table.table.table-dark.table-striped.mb-4
+        thead
+            tr
+                th Username
+                th Admin
+                th New password
+                th
+        tbody
+            each user in users
+                tr
+                    td= user.username
+                    td= user.is_admin ? 'Yes' : ''
+                    td
+                        if user.id !== currentUserId
+                            form.d-flex.gap-1(method='POST' action=`/admin/users/${user.id}/password`)
+                                input.form-control.form-control-sm(type='password' name='password' placeholder='New password' required)
+                                button.btn.btn-sm.btn-outline-secondary(type='submit') Set
+                    td
+                        if user.id !== currentUserId
+                            form(method='POST' action=`/admin/users/${user.id}/delete`)
+                                button.btn.btn-sm.btn-outline-danger(type='submit') Delete
+
+    h2 Your account
+    form.mb-4(method='POST' action='/admin/account/password')
+        .mb-3
+            label.form-label(for='own_password') Set or change your own password
+            input.form-control#own_password(type='password' name='password' required)
+        button.btn.btn-secondary(type='submit') Update my password
+
+    h2 Add a user
+    p.text-muted.small.
+        Adding a second account makes this a multi-user instance, which
+        requires passwords for everyone - set your own above first if you
+        haven't already.
+    form.mb-4(method='POST' action='/admin/users')
+        .mb-3
+            label.form-label(for='username') Username
+            input.form-control#username(type='text' name='username' required)
+        .mb-3
+            label.form-label(for='password') Password
+            input.form-control#password(type='password' name='password' required)
+        .form-check.mb-3
+            input.form-check-input#is_admin(type='checkbox' name='is_admin')
+            label.form-check-label(for='is_admin') Admin (can manage users and cache settings)
+        button.btn.btn-primary(type='submit') Add user
+
+    h2 Cache
+    p.text-muted.small Total disk usage across every comic: #{totalUsage}
+    form.mb-3(method='POST' action='/admin/cache/max-usage')
+        .mb-3
+            label.form-label(for='max_disk_usage_mb') Max disk usage (MB) - blank for unlimited
+            input.form-control.form-control-sm(type='number' name='max_disk_usage_mb' id='max_disk_usage_mb' value=maxDiskUsageMb min='1' style='width:auto;')
+        button.btn.btn-sm.btn-primary(type='submit') Save
+    p.text-muted.small.
+        When a cap is set, it's only enforced right after new pages are
+        downloaded - whichever comic was read longest ago gets force-cleared
+        first, repeatedly, until back under the cap.
+    button.btn.btn-sm.btn-outline-danger.js-clear-cache-now-btn(type='button' data-clear-url='/admin/cache/clear-now' data-clear-label="Force-clear every comic's cache right now, for every account") Clear Cache Now
+
+    script(src='/js/twoClickConfirm.js')
+    script(src='/js/adminCache.js')

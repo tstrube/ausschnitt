@@ -1,0 +1,31 @@
+/* Row-based lists where each <li>'s children should line up into shared
+   columns (timestamps, badges, action buttons) regardless of how much the
+   preceding content varies in width from row to row. Each <li> becomes
+   display:contents so its direct children join the <ul>'s own grid tracks
+   instead of the grid applying to the <li> itself. */
+.aligned-rows {
+    display: grid;
+    row-gap: .5rem;
+    column-gap: .75rem;
+    align-items: center;
+}
+
+.aligned-rows > li {
+    display: contents;
+}
+
+.aligned-rows-2col {
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.aligned-rows-3col {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+/* A grid item's default min-width is auto (its content's natural width),
+   which overrides text-truncate's overflow:hidden and lets it blow out the
+   1fr column instead of actually truncating. */
+.aligned-rows .text-truncate,
+.aligned-rows .text-break {
+    min-width: 0;
+}

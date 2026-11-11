@@ -1,0 +1,55 @@
+extends layout
+
+block head
+    link(rel='stylesheet' href='/css/reader.css')
+
+block body
+    .reader-shell
+        .reader-topbar
+            .reader-topbar-group
+                a.btn.btn-outline-light.btn-icon(href='/' aria-label='Home' title='Home') 🏠
+                button#bookmarksBtn.btn.btn-outline-light.btn-icon(type='button' title='Bookmarks') 🔖
+                button#historyBtn.btn.btn-outline-light.btn-icon(type='button' title='Resume history') 🕘
+            .reader-topbar-group
+                button#ignoreBtn.btn.btn-outline-light.btn-icon(type='button' title="Ignore this page (skips it during scrolling - undo right after, or later from this comic's Settings page)") 🚫
+                a.btn.btn-outline-light.btn-icon(href=`/comics/${comic.id}/settings` aria-label='Comic settings' title="This comic's settings & ignored pages") ⚙
+                a.btn.btn-outline-light.btn-icon(href='/manual' aria-label='Manual' title='Manual') ❓
+        .reader-history-panel#bookmarksPanel
+            strong.small Bookmarks
+            form#saveBookmarkForm.d-flex.gap-1.mt-2.mb-2
+                input.form-control.form-control-sm#bookmarkNameInput(type='text' placeholder='Bookmark name' required)
+                button.btn.btn-sm.btn-primary(type='submit') Save
+            ul#bookmarksList.list-unstyled.small
+            a.small(href='/bookmarks') Manage all bookmarks →
+        .reader-history-panel#historyPanel
+            strong.small Resume history
+            ul#historyList.list-unstyled.small
+            a.small(href='/manual#bookmarks') What's this? →
+        //- The banner overlays the top of the feed: it toggles after position
+        //- reports, mid-scroll, and must never move the panels.
+        .reader-feed-area
+            .reader-resume-banner#resumeBanner(class=atBookmark ? '' : 'visible')
+                span Jumped away from your last spot.
+                button#resumeBtn.btn.btn-sm.btn-light(type='button') Resume
+                button#setBookmarkBtn.btn.btn-sm.btn-outline-light(type='button') Save Resume Point
+            .reader-scroll-feed#scrollFeed
+                .reader-scroll-spacer#topSpacer
+                .reader-scroll-sentinel#topSentinel
+                each panel in panels
+                    img.reader-scroll-panel(src=panel.imageUrl, width=panel.width, height=panel.height, data-panel-id=panel.id, data-page-id=panel.pageId, alt='Comic panel')
+                .reader-scroll-sentinel#bottomSentinel
+                .reader-loading#loadingIndicator
+                    .reader-spinner
+        if !hideNav
+            .reader-controls
+                button#firstBtn.btn.btn-outline-light(aria-label='First page') ⏮
+                button#latestBtn.btn.btn-outline-light(aria-label='Latest page') ⏭
+
+    script(src='/js/readerScroll.js')
+    script.
+        const comicId = !{comic.id};
+        const comicTitle = !{JSON.stringify(comic.title)};
+        const initialBookmarkHistory = !{JSON.stringify(bookmarkHistory)};
+        const initialBookmarks = !{JSON.stringify(bookmarks)};
+        const anchorPanelId = !{anchorPanelId};
+        const initialAtBookmark = !{atBookmark ? 'true' : 'false'};

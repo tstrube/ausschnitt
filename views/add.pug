@@ -1,0 +1,23 @@
+extends layout
+
+block content
+    h1 Add a New Comic
+
+    form(method='POST' action='/add')
+        .mb-3
+            label.form-label(for='url') Comic URL
+            input.form-control(type='text' name='url', placeholder='example.com/comic' required)
+            p.form-text.text-muted.mb-0 https:// is detected automatically if you leave it out.
+
+        .mb-3
+            label.form-label(for='title') Comic Name
+            input.form-control(type='text' name='title', required)
+
+        .mb-3
+            label.form-label(for='reading-direction') Panel order
+            select.form-select#reading-direction(name='reading_direction')
+                option(value='ltr' selected) Left to right
+                option(value='rtl') Right to left (manga)
+            p.form-text.text-muted.mb-0 How the columns of a page are read. If someone already added this comic, its name and panel order are kept.
+
+        button.btn.btn-primary(type='submit') Add Comic

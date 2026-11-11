@@ -1,0 +1,10 @@
+//- Username, Admin and Log out - multi-user mode only. Shared by the main
+//- navbar (layout.pug) and Select Elements' own header; deliberately not on
+//- the comic readers, whose top bar is reserved for reading controls.
+if user && showAccountSwitch
+    span.text-light.small #{user.username}
+if user && user.is_admin && showAccountSwitch
+    a.btn.btn-outline-light.btn-icon(href='/admin/users' aria-label='Admin' title='Admin') 👥
+if user && showAccountSwitch
+    form.d-inline(method='POST' action='/logout')
+        button.btn.btn-outline-light.btn-icon(type='submit' aria-label='Log out' title='Log out') 🚪

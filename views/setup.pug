@@ -1,0 +1,40 @@
+extends layout
+
+block content
+    h1 Welcome
+    p.text-muted.
+        One-time setup - this only runs once, the first time the app starts
+        with no accounts yet.
+
+    if error
+        .alert.alert-danger= error
+
+    form(method='POST' action='/setup')
+        .form-check.mb-3
+            input.form-check-input#multi_user(type='checkbox' name='multi_user')
+            label.form-check-label(for='multi_user') Enable multiple accounts (requires a username and password)
+
+        #credentialsFields
+            .mb-3
+                label.form-label(for='username') Username
+                input.form-control#username(type='text' name='username')
+            .mb-3
+                label.form-label(for='password') Password
+                input.form-control#password(type='password' name='password')
+
+        button.btn.btn-primary(type='submit') Create account & finish setup
+
+    script.
+        const checkbox = document.getElementById('multi_user');
+        const fields = document.getElementById('credentialsFields');
+        const username = document.getElementById('username');
+        const password = document.getElementById('password');
+
+        function sync() {
+            const show = checkbox.checked;
+            fields.style.display = show ? '' : 'none';
+            username.required = show;
+            password.required = show;
+        }
+        checkbox.addEventListener('change', sync);
+        sync();

@@ -1,0 +1,72 @@
+extends layout
+
+block head
+    link(rel='stylesheet' href='/css/settings.css')
+
+block content
+    h1.mb-3 Settings
+
+    //- Each row is its own form and saves on change - no Save button, like a
+    //- phone's settings screen. Per-comic overrides live on each comic's own
+    //- Settings page (⚙ in the reader).
+    .settings-group-title Appearance
+    .list-group
+        .list-group-item.settings-row
+            label.settings-label(for='themeSelect') Theme
+                span.settings-hint Only on this device
+            select#themeSelect.form-select.form-select-sm(aria-label='Theme')
+                option(value='system') System
+                option(value='light') Light
+                option(value='dark') Dark
+
+    .settings-group-title Reading
+    .list-group
+        form.list-group-item.settings-row(method='POST' action='/settings/reading-mode')
+            label.settings-label(for='default-reading-mode') Default reading mode
+            select#default-reading-mode.form-select.form-select-sm(name='default_reading_mode' onchange='this.form.submit()')
+                option(value='scroll' selected=globalReadingMode === 'scroll') Endless Scroll
+                option(value='paged' selected=globalReadingMode === 'paged') Paged
+        form.list-group-item.settings-row(method='POST' action='/settings/scroll-nav')
+            label.settings-label(for='default-scroll-nav') Endless scroll bottom bar
+                span.settings-hint First/Latest buttons
+            select#default-scroll-nav.form-select.form-select-sm(name='default_scroll_nav' onchange='this.form.submit()')
+                option(value='show' selected=!globalHideScrollNav) Show
+                option(value='hide' selected=globalHideScrollNav) Hide
+
+    .settings-group-title Notifications
+    .list-group
+        .list-group-item.settings-row
+            .settings-label
+                | 🔔 New-page notifications
+                span#notifyStatus.settings-hint
+            .d-flex.flex-wrap.justify-content-end.gap-1.settings-value
+                button#notifyTest.btn.btn-sm.btn-outline-secondary(type='button' hidden) Send test
+                button#notifyToggle.btn.btn-sm.btn-outline-secondary(type='button' hidden)
+        form.list-group-item.settings-row(method='POST' action='/settings/new-page-check')
+            label.settings-label(for='new-page-check') Check for new pages
+            select#new-page-check.form-select.form-select-sm(name='new_page_check_hours' onchange='this.form.submit()')
+                each hours in newPageCheckOptions
+                    option(value=hours selected=hours === newPageCheckHours)= hours ? `every ${hours} h` : 'never'
+        form.list-group-item.settings-row(method='POST' action='/settings/notification-target')
+            label.settings-label(for='notification-target') Tapping a notification opens
+            select#notification-target.form-select.form-select-sm(name='notification_target' onchange='this.form.submit()')
+                option(value='resume' selected=user.notification_target === 'resume') Resume point
+                option(value='latest' selected=user.notification_target === 'latest') Newest page
+
+    .settings-group-title Storage
+    .list-group.mb-4
+        .list-group-item.settings-row
+            span.settings-label Used by your comics
+            span.settings-value.text-muted= totalUsed
+        .list-group-item.settings-row
+            span.settings-label Free disk space
+            span.settings-value.text-muted= freeSpace
+        if !showAccountSwitch
+            .list-group-item.settings-row
+                span.settings-label Downloaded pages
+                    span.settings-hint Keeps comics and their Select Elements setup
+                button.btn.btn-sm.btn-outline-danger.js-clear-btn.settings-value(type='button' data-clear-url='/clear-all' data-clear-label='Clear all downloaded pages for every comic') Clear all
+
+    script(src='/js/twoClickConfirm.js')
+    script(src='/js/comicList.js')
+    script(src='/js/notifications.js')

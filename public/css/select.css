@@ -1,0 +1,59 @@
+html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+}
+
+.select-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    width: 100dvw;
+}
+
+.select-topbar {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .5rem .75rem;
+    background: #212529;
+    color: #eee;
+    flex: 0 0 auto;
+}
+
+.select-title {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: .95rem;
+    opacity: .85;
+}
+
+.select-controls {
+    flex: 0 0 auto;
+    padding: .5rem .75rem;
+    background: #212529;
+    color: #eee;
+}
+
+.select-step {
+    font-weight: bold;
+    color: #ffc107;
+    margin-bottom: .4rem;
+}
+
+.select-hint {
+    color: #adb5bd;
+}
+
+/* The one scrollable region on this page - everything above it is fixed, so
+   a touch-scroll anywhere below the controls always lands on the comic
+   preview itself instead of the outer page. */
+.select-frame {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    border: 0;
+    display: block;
+}
