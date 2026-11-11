@@ -437,16 +437,28 @@ function isCleanLine(r: Raster, column: boolean, pos: number, from: number, to: 
     return false;
 }
 
-// Share of an area's pixels in one of `colors`.
-function gutterShare(r: Raster, box: Box, colors: RGB[]): number {
+// Share of an area's pixels in one of `colors` - with `bubbles`, counting
+// speech bubbles as gutter color too.
+function gutterShare(r: Raster, box: Box, colors: RGB[], bubbles = false): number {
     let count = 0;
     for (let y = box.top; y < box.top + box.height; y++) {
         for (let x = box.left; x < box.left + box.width; x++) {
             const p = y * r.width + x;
-            if (colors.some(c => distanceAt(r, p, c) <= GUTTER_TOLERANCE)) count++;
+            if ((bubbles && r.bubbleMask[p]) || colors.some(c => distanceAt(r, p, c) <= GUTTER_TOLERANCE)) count++;
         }
     }
     return box.width * box.height > 0 ? count / (box.width * box.height) : 1;
+}
+
+// Whether an area holds speech bubbles and nothing else: a bubble on a
+// panel's own background, cut off by a gap beside it, is no panel.
+function onlyBubbles(r: Raster, box: Box, colors: RGB[]): boolean {
+    // The bubble's shape, without the outline margin that may reach into
+    // the gap.
+    const m = BUBBLE_MARGIN_PX;
+    const inside = (b: Bubble) => b.box.left + m >= box.left && b.box.top + m >= box.top
+        && b.box.left + b.box.width - m <= box.left + box.width && b.box.top + b.box.height - m <= box.top + box.height;
+    return r.bubbles.some(inside) && gutterShare(r, box, colors, true) >= EMPTY_CELL_FRACTION;
 }
 
 // The area without its clean edge lines: the page margin.
@@ -583,15 +595,17 @@ function partition(r: Raster, box: Box, colors: GutterColors, minSize: { width: 
         // Two parts both nearly all gutter color - lines of text on a
         // white panel, a form's boxes - are one panel: the gap between
         // them is no gutter, unless drawn frames line it (line-art panels
-        // are mostly white too).
+        // are mostly white too). Nor is the gap beside a part holding
+        // only speech bubbles (onlyBubbles).
         const partBox = (from: number, to: number): Box => columns
             ? { left: from, top: box.top, width: to - from, height: box.height }
             : { left: box.left, top: from, width: box.width, height: to - from };
         for (let i = 0; i < gutters.length;) {
             const before = partBox(i ? gutters[i - 1].to : first, gutters[i].from);
             const after = partBox(gutters[i].to, i + 1 < gutters.length ? gutters[i + 1].from : last);
-            if (mergeText && gutterShare(r, before, colors.inside) >= MOSTLY_GUTTER && gutterShare(r, after, colors.inside) >= MOSTLY_GUTTER
-                && !isFramed(r, gutters[i], columns, columns ? box.top : box.left, columns ? box.top + box.height : box.left + box.width, gutterColors)) {
+            const text = gutterShare(r, before, colors.inside) >= MOSTLY_GUTTER && gutterShare(r, after, colors.inside) >= MOSTLY_GUTTER
+                && !isFramed(r, gutters[i], columns, columns ? box.top : box.left, columns ? box.top + box.height : box.left + box.width, gutterColors);
+            if (mergeText && (text || onlyBubbles(r, before, colors.inside) || onlyBubbles(r, after, colors.inside))) {
                 gutters.splice(i, 1);
                 i = 0;
             } else {

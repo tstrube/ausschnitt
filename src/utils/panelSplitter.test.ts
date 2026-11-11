@@ -632,6 +632,26 @@ test('a speech bubble crossing a framed gutter still splits; its panel takes the
     assert.equal(boxes[0].top + boxes[0].height <= 280, true);
 });
 
+test('a speech box on a white panel, a gap away from the figure, stays in that panel', () => {
+    // White page, frameless panels, 12px gutters. The bottom-right panel's
+    // background is the page's white: a figure on its left, and beside it,
+    // across a white gap as wide as a gutter, an outlined speech box with
+    // lettering and nothing else.
+    const width = 400, height = 580;
+    const buffer = Buffer.alloc(width * height * 3, 255);
+    fillRGB(buffer, width, 0, 20, 400, 280, [120, 160, 200]);
+    fillRGB(buffer, width, 0, 292, 194, 560, [150, 200, 150]);
+    fillRGB(buffer, width, 206, 292, 300, 560, [120, 70, 60]);
+    fillRGB(buffer, width, 318, 320, 392, 400, [0, 0, 0]);
+    fillRGB(buffer, width, 320, 322, 390, 398, [255, 255, 255]);
+    for (let x = 326; x < 384; x += 6) fillRGB(buffer, width, x, 340, x + 3, 348, [0, 0, 0]);
+
+    const boxes = detectPanelBoxes(buffer, width, height, 3);
+    assert.deepEqual(boxes.map(b => [b.left, b.top, b.width, b.height]), [
+        [0, 21, 400, 258], [0, 293, 193, 266], [207, 293, 193, 266]
+    ]);
+});
+
 test('lines of text on a white panel stay one panel', () => {
     // White page: gray panels above and below, between them a frameless
     // text panel - lines of "lettering" (thin strokes) with white gaps
