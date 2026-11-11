@@ -675,6 +675,7 @@ function panelsWith(r: Raster, colors: GutterColors): Box[] {
     if (rowsBrokenAcrossColumns(r, partition(r, page, colors, minSize, true, false), colors.inside)) return [];
     const root = partition(r, page, colors, minSize, true, true);
     if (rowsBrokenAcrossColumns(r, root, colors.inside)) return [];
+    alignGutters(r, root, colors.inside);
     let cells = leaves(root).filter(b => gutterShare(r, b, colors.inside) < EMPTY_CELL_FRACTION);
     if (cells.length < 2 || cells.length > MAX_PANELS) return [];
     // Inner gutters in another color than the page's margin may continue
@@ -686,6 +687,78 @@ function panelsWith(r: Raster, colors: GutterColors): Box[] {
         cells = cells.map(c => trimOuterFrame(r, c, page, outer, widest));
     }
     return cells;
+}
+
+// A frameless panel whose background is the gutter color makes its gutter
+// look too wide: the clean band runs on up to the panel's content. Where
+// the rows (or columns) beside it have a narrower gutter inside that band,
+// the cut goes there, and the rest of the band is the panel's background -
+// on a side where the panel has no edge of its own (PANEL_EDGE_FRACTION).
+function alignGutters(r: Raster, node: Node, colors: RGB[]): void {
+    const split = node.split;
+    if (!split) return;
+    split.parts.forEach(p => alignGutters(r, p, colors));
+    const crossCut = split.parts.filter(p => p.split && p.split.columns !== split.columns);
+    for (const part of crossCut) {
+        const own = part.split!;
+        own.gutters.forEach((g, i) => {
+            const narrower = crossCut.flatMap(o => o === part ? [] : o.split!.gutters)
+                .filter(h => h.from >= g.from && h.to <= g.to && h.to - h.from < g.to - g.from)
+                .sort((a, b) => (a.to - a.from) - (b.to - b.from))[0];
+            if (!narrower) return;
+            const before = own.parts[i];
+            const after = own.parts[i + 1];
+            const moved = { ...g };
+            if (narrower.from > g.from && !hasEdge(r, before.box, own.columns, g.from - 1, colors)) {
+                moveEdge(before, own.columns, 'end', narrower.from);
+                moved.from = narrower.from;
+            }
+            if (narrower.to < g.to && !hasEdge(r, after.box, own.columns, g.to, colors)) {
+                moveEdge(after, own.columns, 'start', narrower.to);
+                moved.to = narrower.to;
+            }
+            own.gutters[i] = moved;
+        });
+    }
+}
+
+// Whether a panel's line along a gutter (x = pos for a column cut, else y)
+// is its own edge - a frame, or artwork ending straight - rather than
+// scattered content on a background in the gutter color.
+const PANEL_EDGE_FRACTION = 0.5;
+
+function hasEdge(r: Raster, box: Box, columns: boolean, pos: number, colors: RGB[]): boolean {
+    const from = columns ? box.top : box.left;
+    const to = columns ? box.top + box.height : box.left + box.width;
+    let content = 0;
+    for (let i = from; i < to; i++) {
+        const p = columns ? i * r.width + pos : pos * r.width + i;
+        if (colors.every(c => distanceAt(r, p, c) > GUTTER_TOLERANCE)) content++;
+    }
+    return content >= (to - from) * PANEL_EDGE_FRACTION;
+}
+
+// Moves a node's start or end edge along one axis to `pos`, with every part
+// on that edge.
+function moveEdge(node: Node, columns: boolean, side: 'start' | 'end', pos: number): void {
+    const b = node.box;
+    if (columns) {
+        if (side === 'start') {
+            b.width += b.left - pos;
+            b.left = pos;
+        } else {
+            b.width = pos - b.left;
+        }
+    } else if (side === 'start') {
+        b.height += b.top - pos;
+        b.top = pos;
+    } else {
+        b.height = pos - b.top;
+    }
+    const split = node.split;
+    if (!split) return;
+    if (split.columns === columns) moveEdge(split.parts[side === 'start' ? 0 : split.parts.length - 1], columns, side, pos);
+    else split.parts.forEach(p => moveEdge(p, columns, side, pos));
 }
 
 // The widths of the gutters the cut went along.

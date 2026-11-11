@@ -652,6 +652,24 @@ test('a speech box on a white panel, a gap away from the figure, stays in that p
     ]);
 });
 
+test('a frameless white panel starts at the gutter of the rows beside it, not at its content', () => {
+    // White page, 12px gutters. The bottom-right panel is frameless with the
+    // page's white as background, its content (a figure, not reaching its
+    // top) starting 34px past the gutter: the gutter there is cut where the
+    // top row's is.
+    const width = 400, height = 580;
+    const buffer = Buffer.alloc(width * height * 3, 255);
+    fillRGB(buffer, width, 0, 20, 194, 280, [120, 160, 200]);
+    fillRGB(buffer, width, 206, 20, 400, 280, [200, 120, 120]);
+    fillRGB(buffer, width, 0, 292, 194, 560, [150, 200, 150]);
+    fillRGB(buffer, width, 240, 440, 380, 560, [120, 70, 60]);
+
+    const boxes = detectPanelBoxes(buffer, width, height, 3);
+    assert.deepEqual(boxes.map(b => [b.left, b.top, b.width, b.height]), [
+        [0, 21, 193, 258], [207, 21, 193, 258], [0, 293, 193, 266], [207, 293, 193, 266]
+    ]);
+});
+
 test('lines of text on a white panel stay one panel', () => {
     // White page: gray panels above and below, between them a frameless
     // text panel - lines of "lettering" (thin strokes) with white gaps
