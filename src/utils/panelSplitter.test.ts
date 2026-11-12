@@ -704,6 +704,27 @@ test('a gap with no panel edge on either side is not cut, even as wide as a gutt
     ]);
 });
 
+test('a frameless white panel beside a cut column does not count as a blocked row gutter', () => {
+    // White page, 12px gutters. Top left: a frameless white panel, a figure
+    // covering the same share of every line, and a small mark (a hand) out
+    // near its right side. Beside it, two panels stacked: their row gutter
+    // crosses the white panel only as more of its own background, not as a
+    // gap.
+    const width = 400, height = 580;
+    const buffer = Buffer.alloc(width * height * 3, 255);
+    fillRGB(buffer, width, 40, 60, 120, 280, [120, 70, 60]);
+    fillRGB(buffer, width, 180, 250, 190, 260, [120, 70, 60]);
+    fillRGB(buffer, width, 206, 20, 400, 144, [120, 160, 200]);
+    fillRGB(buffer, width, 206, 156, 400, 280, [200, 120, 120]);
+    fillRGB(buffer, width, 0, 292, 194, 560, [150, 200, 150]);
+    fillRGB(buffer, width, 206, 292, 400, 560, [150, 200, 230]);
+
+    const boxes = detectPanelBoxes(buffer, width, height, 3);
+    assert.deepEqual(boxes.map(b => [b.left, b.top, b.width, b.height]), [
+        [0, 21, 193, 258], [207, 21, 193, 122], [207, 157, 193, 122], [0, 293, 193, 266], [207, 293, 193, 266]
+    ]);
+});
+
 test('lines of text on a white panel stay one panel', () => {
     // White page: gray panels above and below, between them a frameless
     // text panel - lines of "lettering" (thin strokes) with white gaps

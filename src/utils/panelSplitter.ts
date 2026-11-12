@@ -403,8 +403,11 @@ const MAX_PANELS = 16;
 const EMPTY_CELL_FRACTION = 0.99;
 const MOSTLY_GUTTER = 0.8;
 // A row gutter counts as present but blocked in a column where at least
-// this share of its pixels is gutter color.
+// this share of its pixels is gutter color, and that share is
+// BLOCKED_GUTTER_GAP more than on the column's lines just above or below
+// it - a gap, not a panel's own background in the gutter color.
 const BLOCKED_GUTTER_FRACTION = 0.5;
+const BLOCKED_GUTTER_GAP = 0.3;
 
 interface Band {
     from: number;
@@ -643,7 +646,17 @@ function rowsBrokenAcrossColumns(r: Raster, node: Node, colors: RGB[]): boolean 
                 for (const other of split.parts) {
                     if (other === part || hasRowGutter(other, gutter)) continue;
                     const band: Box = { left: other.box.left, top: gutter.from, width: other.box.width, height: gutter.to - gutter.from };
-                    if (gutterShare(r, band, colors) >= BLOCKED_GUTTER_FRACTION) return true;
+                    const share = gutterShare(r, band, colors);
+                    if (share < BLOCKED_GUTTER_FRACTION) continue;
+                    // The column's most contentful line just outside the band.
+                    let outside = 1;
+                    for (let k = 1; k <= EDGE_LINES; k++) {
+                        for (const y of [gutter.from - k, gutter.to - 1 + k]) {
+                            if (y < other.box.top || y >= other.box.top + other.box.height) continue;
+                            outside = Math.min(outside, gutterShare(r, { left: other.box.left, top: y, width: other.box.width, height: 1 }, colors));
+                        }
+                    }
+                    if (share - outside >= BLOCKED_GUTTER_GAP) return true;
                 }
             }
         }
@@ -675,8 +688,9 @@ function panelsWith(r: Raster, colors: GutterColors): Box[] {
     if (rowsBrokenAcrossColumns(r, partition(r, page, colors, minSize, true, false), colors.inside)) return [];
     const root = partition(r, page, colors, minSize, true, true);
     if (rowsBrokenAcrossColumns(r, root, colors.inside)) return [];
-    // Too many cells to be panels before any are joined: no split.
-    if (leaves(root).length > MAX_PANELS) return [];
+    // Too many cells with content to be panels before any are joined: no
+    // split.
+    if (leaves(root).filter(b => gutterShare(r, b, colors.inside) < EMPTY_CELL_FRACTION).length > MAX_PANELS) return [];
     const widths = gutterWidths(root).sort((a, b) => a - b);
     if (widths.length) alignGutters(r, root, colors.inside, widths[(widths.length - 1) >> 1]);
     let cells = leaves(root).filter(b => gutterShare(r, b, colors.inside) < EMPTY_CELL_FRACTION);

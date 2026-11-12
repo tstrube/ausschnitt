@@ -16,7 +16,9 @@ these are the invariants a change must keep:
   split stays one whole panel - an unsplit page is a minor inconvenience,
   a false split a broken one. A row gutter cut in one column but blocked in
   its neighbor leaves the whole page unsplit (the panels couldn't be read
-  in order).
+  in order). Blocked means a gap: the strip is clearly lighter than the
+  column's lines right around it, not just a frameless panel's own
+  background.
 - **Gutter colors are measured per page**: the margin color from the
   page's corners (`estimateMarginColor`); only where that doesn't divide
   the page, a second inner color (a frame around gutters of another
