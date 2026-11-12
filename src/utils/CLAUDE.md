@@ -24,7 +24,14 @@ these are the invariants a change must keep:
 - **Text isn't a gutter**: a gap between two parts that are both nearly
   all gutter color (lines of text, a form on a white panel) isn't cut
   unless drawn frames line it; the reading-order check also runs on the
-  cut without that merge.
+  cut without that merge. Nor is a part holding only speech bubbles a
+  panel (`onlyBubbles`).
+- **Frameless panels** whose background is the gutter color
+  (`alignGutters`): a gap with no panel edge on either side (`hasEdge`: a
+  frame or straight artwork edge, looked for past antialiasing) is never
+  cut, whatever its width. A band with an edge on one side is a gutter
+  of the page's usual width (the median) beside that edge; the rest is
+  the frameless panel's background.
 - **Speech bubbles** (`findBubbles`: a closed light area holding many
   small enclosed letters) may cross a gutter: a band clean apart from a
   bubble still counts when at most half of it lies under bubbles
@@ -35,7 +42,8 @@ these are the invariants a change must keep:
   `PanelCrop.paint`); painted panels are saved as PNG.
 - **No light lines in the dark reader**: every panel side along a gutter
   loses 1px (`insetFromGutters`), plus up to 2 antialiased lines blended
-  between gutter and frame (`trimBlendLines`). Where the inner gutters'
+  between gutter and frame (`trimBlendLines`, a line lighter than the next
+  along 75% of its length). Where the inner gutters'
   color continues as a frame around the panel area, panels on that edge
   lose it (`trimOuterFrame`).
 - **Reading order** (`sortReadingOrder`): rows top to bottom, columns in

@@ -675,7 +675,10 @@ function panelsWith(r: Raster, colors: GutterColors): Box[] {
     if (rowsBrokenAcrossColumns(r, partition(r, page, colors, minSize, true, false), colors.inside)) return [];
     const root = partition(r, page, colors, minSize, true, true);
     if (rowsBrokenAcrossColumns(r, root, colors.inside)) return [];
-    alignGutters(r, root, colors.inside);
+    // Too many cells to be panels before any are joined: no split.
+    if (leaves(root).length > MAX_PANELS) return [];
+    const widths = gutterWidths(root).sort((a, b) => a - b);
+    if (widths.length) alignGutters(r, root, colors.inside, widths[(widths.length - 1) >> 1]);
     let cells = leaves(root).filter(b => gutterShare(r, b, colors.inside) < EMPTY_CELL_FRACTION);
     if (cells.length < 2 || cells.length > MAX_PANELS) return [];
     // Inner gutters in another color than the page's margin may continue
@@ -689,53 +692,77 @@ function panelsWith(r: Raster, colors: GutterColors): Box[] {
     return cells;
 }
 
-// A frameless panel whose background is the gutter color makes its gutter
-// look too wide: the clean band runs on up to the panel's content. Where
-// the rows (or columns) beside it have a narrower gutter inside that band,
-// the cut goes there, and the rest of the band is the panel's background -
-// on a side where the panel has no edge of its own (PANEL_EDGE_FRACTION).
-function alignGutters(r: Raster, node: Node, colors: RGB[]): void {
+// A band with no panel edge on either side (PANEL_EDGE_FRACTION) - only
+// scattered content on a background in the gutter color - may as well be
+// empty space inside one frameless panel, whatever its width: its two parts
+// are joined. Where one side has an edge, the band is a real gutter, but a
+// frameless panel whose background is the gutter color makes it look too
+// wide: gutters on a page are about the same width, so it keeps the page's
+// usual width (the median) beside the edge, and the rest of the band is the
+// frameless panel's background.
+
+function alignGutters(r: Raster, node: Node, colors: RGB[], width: number): void {
     const split = node.split;
     if (!split) return;
-    split.parts.forEach(p => alignGutters(r, p, colors));
-    const crossCut = split.parts.filter(p => p.split && p.split.columns !== split.columns);
-    for (const part of crossCut) {
-        const own = part.split!;
-        own.gutters.forEach((g, i) => {
-            const narrower = crossCut.flatMap(o => o === part ? [] : o.split!.gutters)
-                .filter(h => h.from >= g.from && h.to <= g.to && h.to - h.from < g.to - g.from)
-                .sort((a, b) => (a.to - a.from) - (b.to - b.from))[0];
-            if (!narrower) return;
-            const before = own.parts[i];
-            const after = own.parts[i + 1];
-            const moved = { ...g };
-            if (narrower.from > g.from && !hasEdge(r, before.box, own.columns, g.from - 1, colors)) {
-                moveEdge(before, own.columns, 'end', narrower.from);
-                moved.from = narrower.from;
-            }
-            if (narrower.to < g.to && !hasEdge(r, after.box, own.columns, g.to, colors)) {
-                moveEdge(after, own.columns, 'start', narrower.to);
-                moved.to = narrower.to;
-            }
-            own.gutters[i] = moved;
-        });
+    split.parts.forEach(p => alignGutters(r, p, colors, width));
+    for (let i = 0; i < split.gutters.length;) {
+        const g = split.gutters[i];
+        const before = split.parts[i];
+        const after = split.parts[i + 1];
+        const beforeEdge = hasEdge(r, before.box, split.columns, g.from - 1, -1, colors);
+        const afterEdge = hasEdge(r, after.box, split.columns, g.to, 1, colors);
+        if (!beforeEdge && !afterEdge && !before.split && !after.split) {
+            const b = before.box;
+            const a = after.box;
+            const left = Math.min(b.left, a.left);
+            const top = Math.min(b.top, a.top);
+            const box = {
+                left,
+                top,
+                width: Math.max(b.left + b.width, a.left + a.width) - left,
+                height: Math.max(b.top + b.height, a.top + a.height) - top
+            };
+            split.parts.splice(i, 2, { box });
+            split.gutters.splice(i, 1);
+            continue;
+        }
+        if ((beforeEdge && afterEdge) || g.to - g.from <= width) {
+            i++;
+            continue;
+        }
+        const from = beforeEdge ? g.from : afterEdge ? g.to - width : Math.round((g.from + g.to - width) / 2);
+        const moved = { from, to: from + width };
+        if (moved.from > g.from) moveEdge(before, split.columns, 'end', moved.from);
+        if (moved.to < g.to) moveEdge(after, split.columns, 'start', moved.to);
+        split.gutters[i] = moved;
+        i++;
     }
+    if (split.parts.length === 1) delete node.split;
 }
 
-// Whether a panel's line along a gutter (x = pos for a column cut, else y)
-// is its own edge - a frame, or artwork ending straight - rather than
-// scattered content on a background in the gutter color.
+// Whether a panel has its own edge along a gutter - a frame, or artwork
+// ending straight - rather than scattered content on a background in the
+// gutter color: one of its lines next to the gutter (from x = pos for a
+// column cut, else y, EDGE_LINES inward in direction `dir`, past
+// antialiasing) is mostly content.
 const PANEL_EDGE_FRACTION = 0.5;
+const EDGE_LINES = 3;
 
-function hasEdge(r: Raster, box: Box, columns: boolean, pos: number, colors: RGB[]): boolean {
+function hasEdge(r: Raster, box: Box, columns: boolean, pos: number, dir: number, colors: RGB[]): boolean {
     const from = columns ? box.top : box.left;
     const to = columns ? box.top + box.height : box.left + box.width;
-    let content = 0;
-    for (let i = from; i < to; i++) {
-        const p = columns ? i * r.width + pos : pos * r.width + i;
-        if (colors.every(c => distanceAt(r, p, c) > GUTTER_TOLERANCE)) content++;
+    const limit = columns ? r.width : r.height;
+    for (let k = 0; k < EDGE_LINES; k++) {
+        const line = pos + dir * k;
+        if (line < 0 || line >= limit) break;
+        let content = 0;
+        for (let i = from; i < to; i++) {
+            const p = columns ? i * r.width + line : line * r.width + i;
+            if (colors.every(c => distanceAt(r, p, c) > GUTTER_TOLERANCE)) content++;
+        }
+        if (content >= (to - from) * PANEL_EDGE_FRACTION) return true;
     }
-    return content >= (to - from) * PANEL_EDGE_FRACTION;
+    return false;
 }
 
 // Moves a node's start or end edge along one axis to `pos`, with every part
@@ -821,7 +848,7 @@ function insetFromGutters(r: Raster, cell: Box): Box {
 // edge has no such step there and keeps every line.
 const MAX_BLEND_LINES = 2;
 const BLEND_STEP = 40;
-const BLEND_LINE_FRACTION = 0.95;
+const BLEND_LINE_FRACTION = 0.75;
 
 function trimBlendLines(r: Raster, cell: Box, gutter: RGB): Box {
     let left = cell.left;

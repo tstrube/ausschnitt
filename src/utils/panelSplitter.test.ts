@@ -670,6 +670,40 @@ test('a frameless white panel starts at the gutter of the rows beside it, not at
     ]);
 });
 
+test('a frameless white panel next to a framed one gets the page\'s usual gutter, not the whole white band', () => {
+    // White page, 12px row gutter. Bottom left: a frameless white panel, its
+    // figure ending 90px before the framed panel on the right - a white
+    // band no other gutter lines up with.
+    const width = 400, height = 580;
+    const buffer = Buffer.alloc(width * height * 3, 255);
+    fillRGB(buffer, width, 0, 20, 400, 280, [120, 160, 200]);
+    fillRGB(buffer, width, 20, 450, 150, 560, [120, 70, 60]);
+    fillRGB(buffer, width, 240, 292, 400, 560, [150, 200, 150]);
+
+    const boxes = detectPanelBoxes(buffer, width, height, 3);
+    assert.deepEqual(boxes.map(b => [b.left, b.top, b.width, b.height]), [
+        [0, 21, 400, 258], [0, 293, 227, 266], [241, 293, 159, 266]
+    ]);
+});
+
+test('a gap with no panel edge on either side is not cut, even as wide as a gutter', () => {
+    // White page, 12px gutters. The bottom-right panel is frameless with the
+    // page's white as background and holds two figures 12px apart - a gap
+    // as wide as a gutter, with nothing but figures beside it.
+    const width = 400, height = 580;
+    const buffer = Buffer.alloc(width * height * 3, 255);
+    fillRGB(buffer, width, 0, 20, 194, 280, [120, 160, 200]);
+    fillRGB(buffer, width, 206, 20, 400, 280, [200, 120, 120]);
+    fillRGB(buffer, width, 0, 292, 194, 560, [150, 200, 150]);
+    fillRGB(buffer, width, 230, 450, 280, 560, [120, 70, 60]);
+    fillRGB(buffer, width, 292, 450, 380, 560, [60, 70, 120]);
+
+    const boxes = detectPanelBoxes(buffer, width, height, 3);
+    assert.deepEqual(boxes.map(b => [b.left, b.top, b.width, b.height]), [
+        [0, 21, 193, 258], [207, 21, 193, 258], [0, 293, 193, 266], [207, 293, 193, 266]
+    ]);
+});
+
 test('lines of text on a white panel stay one panel', () => {
     // White page: gray panels above and below, between them a frameless
     // text panel - lines of "lettering" (thin strokes) with white gaps
