@@ -684,15 +684,18 @@ function panelsWith(r: Raster, colors: GutterColors): Box[] {
         height: Math.max(MIN_PANEL_PX, r.height * MIN_PANEL_FRACTION)
     };
     // Joining text gaps never makes a page readable in order that wasn't:
-    // the order check also runs on the cut without it.
-    if (rowsBrokenAcrossColumns(r, partition(r, page, colors, minSize, true, false), colors.inside)) return [];
+    // the order check also runs on the cut without it. Both are checked
+    // once gaps with no panel edge on either side are joined
+    // (alignTree) - those are no cuts.
+    const unmerged = partition(r, page, colors, minSize, true, false);
+    alignTree(r, unmerged, colors.inside);
+    if (rowsBrokenAcrossColumns(r, unmerged, colors.inside)) return [];
     const root = partition(r, page, colors, minSize, true, true);
-    if (rowsBrokenAcrossColumns(r, root, colors.inside)) return [];
     // Too many cells with content to be panels before any are joined: no
     // split.
     if (leaves(root).filter(b => gutterShare(r, b, colors.inside) < EMPTY_CELL_FRACTION).length > MAX_PANELS) return [];
-    const widths = gutterWidths(root).sort((a, b) => a - b);
-    if (widths.length) alignGutters(r, root, colors.inside, widths[(widths.length - 1) >> 1]);
+    alignTree(r, root, colors.inside);
+    if (rowsBrokenAcrossColumns(r, root, colors.inside)) return [];
     let cells = leaves(root).filter(b => gutterShare(r, b, colors.inside) < EMPTY_CELL_FRACTION);
     if (cells.length < 2 || cells.length > MAX_PANELS) return [];
     // Inner gutters in another color than the page's margin may continue
@@ -706,6 +709,15 @@ function panelsWith(r: Raster, colors: GutterColors): Box[] {
     return cells;
 }
 
+// alignGutters: first the joins, then the narrowing to the page's usual
+// gutter width - the median of the gutters left, not of gaps that were no
+// gutters.
+function alignTree(r: Raster, root: Node, colors: RGB[]): void {
+    alignGutters(r, root, colors, null);
+    const widths = gutterWidths(root).sort((a, b) => a - b);
+    if (widths.length) alignGutters(r, root, colors, widths[(widths.length - 1) >> 1]);
+}
+
 // A band with no panel edge on either side (PANEL_EDGE_FRACTION) - only
 // scattered content on a background in the gutter color - may as well be
 // empty space inside one frameless panel, whatever its width: its two parts
@@ -715,7 +727,8 @@ function panelsWith(r: Raster, colors: GutterColors): Box[] {
 // usual width (the median) beside the edge, and the rest of the band is the
 // frameless panel's background.
 
-function alignGutters(r: Raster, node: Node, colors: RGB[], width: number): void {
+// With `width` null, only the joins.
+function alignGutters(r: Raster, node: Node, colors: RGB[], width: number | null): void {
     const split = node.split;
     if (!split) return;
     split.parts.forEach(p => alignGutters(r, p, colors, width));
@@ -740,7 +753,7 @@ function alignGutters(r: Raster, node: Node, colors: RGB[], width: number): void
             split.gutters.splice(i, 1);
             continue;
         }
-        if ((beforeEdge && afterEdge) || g.to - g.from <= width) {
+        if (width === null || (beforeEdge && afterEdge) || g.to - g.from <= width) {
             i++;
             continue;
         }

@@ -725,6 +725,27 @@ test('a frameless white panel beside a cut column does not count as a blocked ro
     ]);
 });
 
+test('gaps inside a frameless white panel are joined before the reading-order check', () => {
+    // White page, 12px gutters. Bottom left: a frameless white panel with a
+    // figure, and beside it a speech bubble above a second figure, with
+    // white between all three. Cut there, the bubble's gap would look like
+    // a row gutter blocked beside it; joined, the panel is one.
+    const width = 400, height = 580;
+    const buffer = Buffer.alloc(width * height * 3, 255);
+    fillRGB(buffer, width, 0, 20, 194, 280, [120, 160, 200]);
+    fillRGB(buffer, width, 206, 20, 400, 280, [200, 120, 120]);
+    fillRGB(buffer, width, 10, 440, 80, 560, [120, 70, 60]);
+    fillRGB(buffer, width, 110, 300, 140, 340, [90, 90, 90]);
+    fillRGB(buffer, width, 150, 480, 180, 500, [60, 70, 120]);
+    fillRGB(buffer, width, 110, 500, 180, 560, [60, 70, 120]);
+    fillRGB(buffer, width, 206, 292, 400, 560, [150, 200, 230]);
+
+    const boxes = detectPanelBoxes(buffer, width, height, 3);
+    assert.deepEqual(boxes.map(b => [b.left, b.top, b.width, b.height]), [
+        [0, 21, 193, 258], [207, 21, 193, 258], [0, 293, 193, 266], [207, 293, 193, 266]
+    ]);
+});
+
 test('lines of text on a white panel stay one panel', () => {
     // White page: gray panels above and below, between them a frameless
     // text panel - lines of "lettering" (thin strokes) with white gaps

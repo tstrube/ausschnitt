@@ -31,9 +31,11 @@ these are the invariants a change must keep:
 - **Frameless panels** whose background is the gutter color
   (`alignGutters`): a gap with no panel edge on either side (`hasEdge`: a
   frame or straight artwork edge, looked for past antialiasing) is never
-  cut, whatever its width. A band with an edge on one side is a gutter
-  of the page's usual width (the median) beside that edge; the rest is
-  the frameless panel's background.
+  cut, whatever its width - joined before the reading-order check, so
+  such gaps never count as cuts there. A band with an edge on one side is
+  a gutter of the page's usual width (the median of the gutters left after
+  joining) beside that edge; the rest is the frameless panel's
+  background.
 - **Speech bubbles** (`findBubbles`: a closed light area holding many
   small enclosed letters) may cross a gutter: a band clean apart from a
   bubble still counts when at most half of it lies under bubbles
