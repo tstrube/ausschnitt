@@ -746,6 +746,24 @@ test('gaps inside a frameless white panel are joined before the reading-order ch
     ]);
 });
 
+test('a pale strip through a panel, close to the gutter color but evenly off it, is no gutter', () => {
+    // White page, 12px gutters. The top panel has a light gray door frame
+    // (247 - within a gutter's tolerance pixel by pixel) running down its
+    // full height between two dark halves.
+    const width = 400, height = 580;
+    const buffer = Buffer.alloc(width * height * 3, 255);
+    fillRGB(buffer, width, 0, 20, 150, 280, [90, 80, 100]);
+    fillRGB(buffer, width, 150, 20, 158, 280, [247, 247, 247]);
+    fillRGB(buffer, width, 158, 20, 400, 280, [110, 100, 90]);
+    fillRGB(buffer, width, 0, 292, 194, 560, [150, 200, 150]);
+    fillRGB(buffer, width, 206, 292, 400, 560, [150, 200, 230]);
+
+    const boxes = detectPanelBoxes(buffer, width, height, 3);
+    assert.deepEqual(boxes.map(b => [b.left, b.top, b.width, b.height]), [
+        [0, 21, 400, 258], [0, 293, 193, 266], [207, 293, 193, 266]
+    ]);
+});
+
 test('lines of text on a white panel stay one panel', () => {
     // White page: gray panels above and below, between them a frameless
     // text panel - lines of "lettering" (thin strokes) with white gaps

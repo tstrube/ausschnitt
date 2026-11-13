@@ -22,7 +22,10 @@ these are the invariants a change must keep:
 - **Gutter colors are measured per page**: the margin color from the
   page's corners (`estimateMarginColor`); only where that doesn't divide
   the page, a second inner color (a frame around gutters of another
-  color). Never a fixed color.
+  color). Never a fixed color. Pixel by pixel a gutter may be a little
+  off its color (compression, dithering), but each line averages to it
+  (`onGutterColor`): a pale area in the artwork near the gutter color, a
+  light door frame beside white gutters, is off it evenly and no gutter.
 - **Text isn't a gutter**: a gap between two parts that are both nearly
   all gutter color (lines of text, a form on a white panel) isn't cut
   unless drawn frames line it; the reading-order check also runs on the

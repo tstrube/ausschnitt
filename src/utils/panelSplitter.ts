@@ -67,6 +67,8 @@ interface Raster {
     bubbles: Bubble[];
     // Per pixel: 1 inside a bubble or its outline (BUBBLE_MARGIN_PX).
     bubbleMask: Uint8Array;
+    // measuredColor per gutter color, as computed (onGutterColor).
+    measured: Map<string, RGB>;
 }
 
 // Reads the color at byte offset `idx` regardless of the source image's
@@ -480,7 +482,8 @@ function trimMargin(r: Raster, box: Box, colors: RGB[]): Box {
 // The gutters across a box along one axis: runs of at least `minLength`
 // clean lines, not at its edge - and, where a speech bubble crosses a
 // gutter, runs clean apart from the bubble, at most half under bubbles
-// (bubbleShare), that lie between drawn panel frames (isFramed).
+// (bubbleShare), that lie between drawn panel frames (isFramed). Either way
+// in a gutter color line by line on average (onGutterColor).
 function findGutters(r: Raster, box: Box, columns: boolean, colors: RGB[], minLength: number, noise = CLEAN_LINE_NOISE): Band[] {
     const from = columns ? box.top : box.left;
     const to = columns ? box.top + box.height : box.left + box.width;
@@ -488,7 +491,41 @@ function findGutters(r: Raster, box: Box, columns: boolean, colors: RGB[], minLe
     const crossed = cleanRuns(r, box, columns, colors, minLength, noise, true)
         .filter(b => !clean.some(c => c.from < b.to && c.to > b.from) && bubbleShare(r, b, columns, from, to) <= MAX_BUBBLE_SHARE
             && isFramed(r, b, columns, from, to, colors));
-    return [...clean, ...crossed].sort((x, y) => x.from - y.from);
+    return [...clean, ...crossed]
+        .filter(b => onGutterColor(r, b, columns, from, to, colors))
+        .sort((x, y) => x.from - y.from);
+}
+
+// A gutter's pixels scatter around its color (compression, dithering), so
+// each of its lines is on average the same color (SAME_COLOR_EPSILON) as a
+// gutter color - the sampled one, or the page's measured one
+// (measuredColor) where the sample is a shade off. A light area in the
+// artwork near the gutter color (a pale door frame beside a white gutter) is
+// off it evenly. At least half the band's lines must be, so an antialiased
+// line at its edge doesn't count against it; speech bubbles crossing it
+// don't count either.
+function onGutterColor(r: Raster, band: Band, columns: boolean, from: number, to: number, colors: RGB[]): boolean {
+    const references = colors.flatMap(c => {
+        const key = `${c.r},${c.g},${c.b}`;
+        if (!r.measured.has(key)) r.measured.set(key, measuredColor(r, c));
+        return [c, r.measured.get(key)!];
+    });
+    let onColor = 0;
+    for (let p = band.from; p < band.to; p++) {
+        let red = 0, green = 0, blue = 0, count = 0;
+        for (let i = from; i < to; i++) {
+            const at = columns ? i * r.width + p : p * r.width + i;
+            if (r.bubbleMask[at]) continue;
+            const c = pixelAt(r, at);
+            red += c.r;
+            green += c.g;
+            blue += c.b;
+            count++;
+        }
+        const mean = { r: red / Math.max(1, count), g: green / Math.max(1, count), b: blue / Math.max(1, count) };
+        if (!count || references.some(c => colorDistance(mean, c) <= SAME_COLOR_EPSILON)) onColor++;
+    }
+    return onColor * 2 >= band.to - band.from;
 }
 
 function cleanRuns(r: Raster, box: Box, columns: boolean, colors: RGB[], minLength: number, noise: number, ignoreBubbles: boolean): Band[] {
@@ -1244,7 +1281,7 @@ export function sortReadingOrder<T extends Box>(boxes: T[], direction: ReadingDi
  * codec.
  */
 export function detectPanelBoxes(data: Buffer, width: number, height: number, channels: number, direction: ReadingDirection = 'ltr'): PanelCrop[] {
-    const r: Raster = { data, width, height, channels, bubbles: [], bubbleMask: new Uint8Array(width * height) };
+    const r: Raster = { data, width, height, channels, bubbles: [], bubbleMask: new Uint8Array(width * height), measured: new Map() };
     findBubbles(r);
     const [margin, ...inner] = gutterColorSets(r);
     let best: { cells: Box[]; colors: GutterColors } = { cells: panelsWith(r, margin), colors: margin };
