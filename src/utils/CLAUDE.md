@@ -28,12 +28,16 @@ these are the invariants a change must keep:
   light door frame beside white gutters, is off it evenly and no gutter.
 - **Text isn't a gutter**: a gap between two parts that are both nearly
   all gutter color (lines of text, a form on a white panel) isn't cut
-  unless drawn frames line it; the reading-order check also runs on the
+  unless drawn frames line it (both measured against the gutter's own noise,
+  `gutterNoise`); the reading-order check also runs on the
   cut without that merge. Nor is a part holding only speech bubbles a
   panel (`onlyBubbles`).
 - **Frameless panels** whose background is the gutter color
   (`alignGutters`): a gap with no panel edge on either side (`hasEdge`: a
-  frame or straight artwork edge, looked for past antialiasing) is never
+  frame or straight artwork edge, looked for past antialiasing; a pixel is
+  content once it's further off the gutter color than the gutter's own
+  pixels are, `gutterNoise` - so a faintly tinted background against an
+  exact white gutter is an edge) is never
   cut, whatever its width - joined before the reading-order check, so
   such gaps never count as cuts there. A band with an edge on one side is
   a gutter of the page's usual width (the median of the gutters left after

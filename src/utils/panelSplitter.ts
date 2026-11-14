@@ -443,13 +443,13 @@ function isCleanLine(r: Raster, column: boolean, pos: number, from: number, to: 
 }
 
 // Share of an area's pixels in one of `colors` - with `bubbles`, counting
-// speech bubbles as gutter color too.
-function gutterShare(r: Raster, box: Box, colors: RGB[], bubbles = false): number {
+// speech bubbles as gutter color too; `tolerance` as in gutterNoise.
+function gutterShare(r: Raster, box: Box, colors: RGB[], bubbles = false, tolerance = GUTTER_TOLERANCE): number {
     let count = 0;
     for (let y = box.top; y < box.top + box.height; y++) {
         for (let x = box.left; x < box.left + box.width; x++) {
             const p = y * r.width + x;
-            if ((bubbles && r.bubbleMask[p]) || colors.some(c => distanceAt(r, p, c) <= GUTTER_TOLERANCE)) count++;
+            if ((bubbles && r.bubbleMask[p]) || colors.some(c => distanceAt(r, p, c) <= tolerance)) count++;
         }
     }
     return box.width * box.height > 0 ? count / (box.width * box.height) : 1;
@@ -643,7 +643,10 @@ function partition(r: Raster, box: Box, colors: GutterColors, minSize: { width: 
         for (let i = 0; i < gutters.length;) {
             const before = partBox(i ? gutters[i - 1].to : first, gutters[i].from);
             const after = partBox(gutters[i].to, i + 1 < gutters.length ? gutters[i + 1].from : last);
-            const text = gutterShare(r, before, colors.inside) >= MOSTLY_GUTTER && gutterShare(r, after, colors.inside) >= MOSTLY_GUTTER
+            // Measured against the gutter's own noise (gutterNoise): a
+            // faintly tinted panel background is no text gap.
+            const tolerance = gutterNoise(r, gutters[i], columns, box, gutterColors);
+            const text = gutterShare(r, before, colors.inside, false, tolerance) >= MOSTLY_GUTTER && gutterShare(r, after, colors.inside, false, tolerance) >= MOSTLY_GUTTER
                 && !isFramed(r, gutters[i], columns, columns ? box.top : box.left, columns ? box.top + box.height : box.left + box.width, gutterColors);
             if (mergeText && (text || onlyBubbles(r, before, colors.inside) || onlyBubbles(r, after, colors.inside))) {
                 gutters.splice(i, 1);
@@ -773,8 +776,9 @@ function alignGutters(r: Raster, node: Node, colors: RGB[], width: number | null
         const g = split.gutters[i];
         const before = split.parts[i];
         const after = split.parts[i + 1];
-        const beforeEdge = hasEdge(r, before.box, split.columns, g.from - 1, -1, colors);
-        const afterEdge = hasEdge(r, after.box, split.columns, g.to, 1, colors);
+        const tolerance = gutterNoise(r, g, split.columns, node.box, colors);
+        const beforeEdge = hasEdge(r, before.box, split.columns, g.from - 1, -1, colors, tolerance);
+        const afterEdge = hasEdge(r, after.box, split.columns, g.to, 1, colors, tolerance);
         if (!beforeEdge && !afterEdge && !before.split && !after.split) {
             const b = before.box;
             const a = after.box;
@@ -812,7 +816,7 @@ function alignGutters(r: Raster, node: Node, colors: RGB[], width: number | null
 const PANEL_EDGE_FRACTION = 0.5;
 const EDGE_LINES = 3;
 
-function hasEdge(r: Raster, box: Box, columns: boolean, pos: number, dir: number, colors: RGB[]): boolean {
+function hasEdge(r: Raster, box: Box, columns: boolean, pos: number, dir: number, colors: RGB[], tolerance: number): boolean {
     const from = columns ? box.top : box.left;
     const to = columns ? box.top + box.height : box.left + box.width;
     const limit = columns ? r.width : r.height;
@@ -822,11 +826,37 @@ function hasEdge(r: Raster, box: Box, columns: boolean, pos: number, dir: number
         let content = 0;
         for (let i = from; i < to; i++) {
             const p = columns ? i * r.width + line : line * r.width + i;
-            if (colors.every(c => distanceAt(r, p, c) > GUTTER_TOLERANCE)) content++;
+            if (colors.every(c => distanceAt(r, p, c) > tolerance)) content++;
         }
         if (content >= (to - from) * PANEL_EDGE_FRACTION) return true;
     }
     return false;
+}
+
+// How far a gutter's own pixels stray from its color: the 95th percentile
+// of its inner lines (its outer ones blend into the panels beside it),
+// plus a little, between NOISE_MIN and GUTTER_TOLERANCE. Beyond that, a
+// pixel beside the gutter is content: a faintly tinted panel background
+// against an exact gutter, but not a white one against a gutter as noisy
+// as itself (JPEG).
+const NOISE_MIN = 3;
+const NOISE_MARGIN = 2;
+
+function gutterNoise(r: Raster, band: Band, columns: boolean, box: Box, colors: RGB[]): number {
+    const from = columns ? box.top : box.left;
+    const to = columns ? box.top + box.height : box.left + box.width;
+    const inner = band.to - band.from >= 3 ? { from: band.from + 1, to: band.to - 1 } : band;
+    const distances: number[] = [];
+    for (let p = inner.from; p < inner.to; p++) {
+        for (let i = from; i < to; i++) {
+            const at = columns ? i * r.width + p : p * r.width + i;
+            if (!r.bubbleMask[at]) distances.push(Math.min(...colors.map(c => distanceAt(r, at, c))));
+        }
+    }
+    if (!distances.length) return GUTTER_TOLERANCE;
+    distances.sort((a, b) => a - b);
+    const p95 = distances[Math.floor((distances.length - 1) * 0.95)];
+    return Math.max(NOISE_MIN, Math.min(GUTTER_TOLERANCE, p95 + NOISE_MARGIN));
 }
 
 // Moves a node's start or end edge along one axis to `pos`, with every part

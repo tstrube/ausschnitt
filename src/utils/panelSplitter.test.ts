@@ -764,6 +764,28 @@ test('a pale strip through a panel, close to the gutter color but evenly off it,
     ]);
 });
 
+test('faintly tinted frameless panels split along an exact white gutter', () => {
+    // White page, 12px gutters of exact white. The top two panels are
+    // frameless with a pale pink background - most of it within a gutter's
+    // tolerance pixel by pixel (a fifth a little darker, as in a gradient),
+    // but all of it clearly off a gutter this exact - each with a figure.
+    const width = 400, height = 580;
+    const buffer = Buffer.alloc(width * height * 3, 255);
+    for (const [x0, x1] of [[0, 194], [206, 400]]) {
+        for (let y = 20; y < 280; y++) {
+            for (let x = x0; x < x1; x++) fillRGB(buffer, width, x, y, x + 1, y + 1, (x + y) % 5 ? [255, 244, 255] : [255, 236, 255]);
+        }
+    }
+    fillRGB(buffer, width, 40, 150, 120, 280, [120, 70, 60]);
+    fillRGB(buffer, width, 260, 150, 340, 280, [60, 70, 120]);
+    fillRGB(buffer, width, 0, 292, 400, 560, [150, 200, 150]);
+
+    const boxes = detectPanelBoxes(buffer, width, height, 3);
+    assert.deepEqual(boxes.map(b => [b.left, b.top, b.width, b.height]), [
+        [0, 21, 193, 258], [207, 21, 193, 258], [0, 293, 400, 266]
+    ]);
+});
+
 test('lines of text on a white panel stay one panel', () => {
     // White page: gray panels above and below, between them a frameless
     // text panel - lines of "lettering" (thin strokes) with white gaps
