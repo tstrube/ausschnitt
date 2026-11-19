@@ -61,7 +61,7 @@ router.post('/settings/scroll-nav', (req: Request, res: Response) => {
 });
 
 router.post('/settings/notification-target', (req: Request, res: Response) => {
-    db.setUserNotificationTarget(req.user!.id, req.body.notification_target === 'latest' ? 'latest' : 'resume');
+    db.setUserNotificationTarget(req.user!.id, db.parseNotificationTarget(req.body.notification_target) ?? 'new');
     res.redirect('/settings');
 });
 
@@ -178,9 +178,7 @@ router.post('/comics/:id/settings', (req: Request, res: Response) => {
         reading_mode: readingMode,
         hide_scroll_nav: hideScrollNav,
         notify_new_pages: !!req.body.notify_new_pages,
-        notification_target: req.body.notification_target === 'resume' || req.body.notification_target === 'latest'
-            ? req.body.notification_target
-            : null,
+        notification_target: db.parseNotificationTarget(req.body.notification_target),
         notify_schedule: comicSchedule(req)
     });
     ReaderCache.reset(req.user!.id, comicId);

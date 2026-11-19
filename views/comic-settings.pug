@@ -117,9 +117,10 @@ block content
                         +schedulePicker(userComic.notify_schedule, 'comic')
                 .list-group-item.settings-row
                     label.settings-label(for='notification-target') Tapping a notification opens
-                        span.settings-hint Default: #{user.notification_target === 'latest' ? 'Newest page' : 'Resume point'}
+                        span.settings-hint Default: #{{ resume: 'Resume point', new: 'First new page', latest: 'Newest page' }[user.notification_target]}
                     select.form-select.form-select-sm#notification-target(name='notification_target')
                         option(value='' selected=userComic.notification_target === null) Default
+                        option(value='new' selected=userComic.notification_target === 'new') First new page
                         option(value='resume' selected=userComic.notification_target === 'resume') Resume point
                         option(value='latest' selected=userComic.notification_target === 'latest') Newest page
             noscript

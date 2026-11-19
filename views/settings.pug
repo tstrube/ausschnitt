@@ -54,6 +54,7 @@ block content
         form.list-group-item.settings-row(method='POST' action='/settings/notification-target')
             label.settings-label(for='notification-target') Tapping a notification opens
             select#notification-target.form-select.form-select-sm(name='notification_target' onchange='this.form.submit()')
+                option(value='new' selected=user.notification_target === 'new') First new page
                 option(value='resume' selected=user.notification_target === 'resume') Resume point
                 option(value='latest' selected=user.notification_target === 'latest') Newest page
 

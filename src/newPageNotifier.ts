@@ -146,6 +146,7 @@ async function runCheck(check: db.ScheduledCheck, now: number): Promise<void> {
     if (!isComicHomeUrl(result.latestUrl, check.comic.url) && db.getPageByUrl(check.comic.id, result.latestUrl)) return;
 
     console.log(`New page detected for "${check.comic.title}": ${result.latestUrl}`);
+    db.markNewPagesAfter(check.user_id, check.comic.id, check.notified_signature);
     await sendToUser(check.user_id, {
         title: check.comic.title,
         body: 'New page available',

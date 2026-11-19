@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import * as db from '../db';
 import path from 'path';
 import { ReaderCache } from '../readerCache';
-import { releaseIfIgnoredByAll } from '../utils/fetch';
+import { fetchAndStorePage, releaseIfIgnoredByAll } from '../utils/fetch';
 import { Panel, ReaderComic } from '../types';
 import { IMAGES_DIR } from '../paths';
 import sharp from 'sharp';
@@ -134,6 +134,8 @@ router.get('/:id', async (req: Request, res: Response) => {
         return;
     }
     db.touchComicCacheAccess(comic.id);
+    // Opened: whatever was new is seen; the next notification starts anew.
+    db.clearNewPagesAfter(req.user!.id, comic.id);
 
     let panel = readerCache.getCurrentPanel();
     if (!panel) {
@@ -481,7 +483,10 @@ router.post('/:id/bookmarks/:bookmarkId/go', async (req: Request, res: Response)
 // Where tapping a new-page notification lands (public/sw.js opens
 // /open/notification, resolved at tap time to the comic's own setting or
 // else the account's default). "latest" opens the newest page at its first
-// panel - a preview like the Latest button; "resume" opens the resume point.
+// panel - a preview like the Latest button; "new" the first page after the
+// one that was newest before this account's first notification since it
+// last opened the comic (db.markNewPagesAfter), also a preview; "resume"
+// opens the resume point.
 router.get('/:id/open/:target', async (req: Request, res: Response) => {
     const comicId = Number(req.params.id);
     const userComic = isNaN(comicId) ? null : db.getUserComic(req.user!.id, comicId);
@@ -492,7 +497,7 @@ router.get('/:id/open/:target', async (req: Request, res: Response) => {
     const target = req.params.target === 'notification'
         ? db.getEffectiveNotificationTarget(req.user!, userComic)
         : req.params.target;
-    if (target !== 'latest' && target !== 'resume') {
+    if (!db.parseNotificationTarget(target)) {
         res.status(400).send('Invalid request');
         return;
     }
@@ -500,8 +505,10 @@ router.get('/:id/open/:target', async (req: Request, res: Response) => {
     // Not getComic(true): the reader's first load after a restart would
     // otherwise still "bootstrap" to the resume point and undo this jump.
     const readerCache = ReaderCache.getInstance(req.user!.id, comicId);
-    await readerCache.getComic();
-    if (target === 'latest') {
+    const comic = await readerCache.getComic();
+    if (target === 'new' && comic && await openFirstNewPage(readerCache, comic, req.user!.id)) {
+        // Landed on it.
+    } else if (target === 'latest' || target === 'new') {
         if (await readerCache.getLastPanel()) readerCache.getFirstPanelOfCurrentPage();
     } else {
         await readerCache.getResumePanel();
@@ -509,6 +516,17 @@ router.get('/:id/open/:target', async (req: Request, res: Response) => {
 
     res.redirect(`/reader/${comicId}`);
 });
+
+// The 'new' target: the page the new ones follow, as noted with the
+// notification - a permalink (a homepage signature can't be looked up),
+// fetched if this account hadn't read that far yet. False if there's no
+// such page, so the caller opens the newest one instead.
+async function openFirstNewPage(readerCache: ReaderCache, comic: ReaderComic, userId: number): Promise<boolean> {
+    const after = db.getNewPagesAfter(userId, comic.id);
+    if (!after || after.startsWith('home:')) return false;
+    const page = db.getPageByUrl(comic.id, after) ?? await fetchAndStorePage(after, comic, 'latest');
+    return !!page && !!await readerCache.openPageAfter(page);
+}
 
 // "Go" from the bookmarks manager page: opens the reader at a known
 // page/panel, as a preview.

@@ -390,6 +390,15 @@ export class ReaderCache {
         return page;
     }
 
+    // The first page after `page` that isn't ignored, at its first panel -
+    // crawling it if it isn't stored yet. `page` itself when there's none
+    // (nothing newer after all).
+    async openPageAfter(page: Page): Promise<Panel | null> {
+        if (!this.comic) return null;
+        const next = await this.firstNonIgnoredPage(page, 'next');
+        return this.setPageAndPanels(next ?? page, first);
+    }
+
     // Right after ignoring the current page: jumps past all of its panels
     // to the next page that isn't ignored.
     async skipCurrentPage(): Promise<Panel | null> {

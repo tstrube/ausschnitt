@@ -96,9 +96,10 @@ function initDb(): void {
             is_admin INTEGER DEFAULT 0,
             has_seen_intro INTEGER DEFAULT 0,
             created_at TEXT DEFAULT (datetime('now')),
-            -- Tapping a new-page notification opens the resume point
-            -- ('resume') or the newest page ('latest').
-            notification_target TEXT DEFAULT 'resume',
+            -- Tapping a new-page notification opens the first page that is
+            -- new since the comic was last opened ('new'), the resume point
+            -- ('resume'), or the newest page ('latest').
+            notification_target TEXT DEFAULT 'new',
             -- Default new-page check schedule (utils/schedule.ts): ISO
             -- weekdays ("1,3,5", empty = never) and a time of day, in the
             -- server's time zone.
@@ -133,6 +134,10 @@ function initDb(): void {
             -- comic's "Latest" it was last told about (newPageNotifier.ts).
             notify_checked_at INTEGER DEFAULT NULL,
             notified_signature TEXT DEFAULT NULL,
+            -- The comic's "Latest" right before the first notification this
+            -- account got since it last opened the comic - the page the new
+            -- ones follow ('new' notification target). NULL once opened.
+            new_after_signature TEXT DEFAULT NULL,
             PRIMARY KEY (user_id, comic_id)
         );
 
@@ -201,7 +206,11 @@ export interface User {
     notify_schedule: Schedule;
 }
 
-export type NotificationTarget = 'resume' | 'latest';
+export type NotificationTarget = 'resume' | 'latest' | 'new';
+
+export function parseNotificationTarget(raw: unknown): NotificationTarget | null {
+    return raw === 'resume' || raw === 'latest' || raw === 'new' ? raw : null;
+}
 
 interface UserRow {
     id: number;
@@ -221,7 +230,7 @@ function mapUserRow(row: UserRow): User {
         password_hash: row.password_hash,
         is_admin: !!row.is_admin,
         has_seen_intro: !!row.has_seen_intro,
-        notification_target: row.notification_target === 'latest' ? 'latest' : 'resume',
+        notification_target: parseNotificationTarget(row.notification_target) ?? 'new',
         notify_schedule: { days: parseDays(row.notify_days), time: parseTime(row.notify_time) ?? DEFAULT_NOTIFY_TIME }
     };
 }
@@ -245,7 +254,7 @@ export function hasAnyUser(): boolean {
 
 export function createUser(username: string, passwordHash: string | null, isAdmin: boolean): number {
     const result = db.prepare(`
-        INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, ?)
+        INSERT INTO users (username, password_hash, is_admin, notification_target) VALUES (?, ?, ?, 'new')
     `).run(username, passwordHash, isAdmin ? 1 : 0);
     return result.lastInsertRowid as number;
 }
@@ -474,7 +483,7 @@ export function getUserComic(userId: number, comicId: number): UserComic | null 
         start_at_first_panel: !!row.start_at_first_panel,
         hide_scroll_nav: hideScrollNavFromDb(row.hide_scroll_nav),
         notify_new_pages: !!row.notify_new_pages,
-        notification_target: row.notification_target === 'resume' || row.notification_target === 'latest' ? row.notification_target : null,
+        notification_target: parseNotificationTarget(row.notification_target),
         notify_schedule: subscriptionSchedule(row.notify_days, row.notify_time)
     };
 }
@@ -1028,6 +1037,29 @@ export function setComicLatestCheck(comicId: number, signature: string | null, c
     db.prepare(`
         UPDATE comics SET latest_signature = COALESCE(?, latest_signature), latest_checked_at = ? WHERE id = ?
     `).run(signature, checkedAt, comicId);
+}
+
+// Where this account's new pages of a comic start (see new_after_signature):
+// set with the first notification since it last opened the comic, kept
+// through later ones, cleared when it opens the comic.
+export function markNewPagesAfter(userId: number, comicId: number, signature: string): void {
+    db.prepare(`
+        UPDATE comic_subscriptions SET new_after_signature = COALESCE(new_after_signature, ?)
+        WHERE user_id = ? AND comic_id = ?
+    `).run(signature, userId, comicId);
+}
+
+export function getNewPagesAfter(userId: number, comicId: number): string | null {
+    const row = db.prepare(`
+        SELECT new_after_signature FROM comic_subscriptions WHERE user_id = ? AND comic_id = ?
+    `).get(userId, comicId) as { new_after_signature: string | null } | undefined;
+    return row?.new_after_signature ?? null;
+}
+
+export function clearNewPagesAfter(userId: number, comicId: number): void {
+    db.prepare(`
+        UPDATE comic_subscriptions SET new_after_signature = NULL WHERE user_id = ? AND comic_id = ?
+    `).run(userId, comicId);
 }
 
 // A scheduled check ran for this account and comic; `signature` is the

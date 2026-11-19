@@ -43,7 +43,7 @@ export interface UserComic {
     /** Send new-page notifications for this comic (to devices that enabled them). */
     notify_new_pages: boolean;
     /** Where tapping this comic's notifications goes; null means "the account's default" - see db.getEffectiveNotificationTarget. */
-    notification_target: 'resume' | 'latest' | null;
+    notification_target: 'resume' | 'latest' | 'new' | null;
     /** This comic's own new-page check schedule; null means "the account's default". */
     notify_schedule: Schedule | null;
 }

@@ -119,8 +119,14 @@
   opens `GET
   /reader/:id/open/notification`, resolved at tap time to the comic's
   `notification_target`, else the account's
-  (`db.getEffectiveNotificationTarget`) - the resume point, or the newest
-  page as a preview. No notification action buttons (iOS can't show
+  (`db.getEffectiveNotificationTarget`): the first new page (`new`, the
+  default), the resume point, or the newest page. "First new page" is the
+  page after `comic_subscriptions.new_after_signature` - the "Latest" from
+  before this account's first notification since it last opened the
+  comic, set when notifying, cleared when the reader opens - skipping
+  ignored pages (and fetching that page once if it isn't stored); without
+  one (a homepage signature) it falls back to the newest page. Both jumps
+  are previews. No notification action buttons (iOS can't show
   them). Devices opt in on `/settings` (`public/js/notifications.js`,
   `routes/push.ts`); subscriptions answered 404/410 are pruned. The VAPID
   subject is the origin the device subscribed from. Testing: Playwright's
