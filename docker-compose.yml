@@ -10,6 +10,8 @@ name: ausschnitt
 #                        session cookie HTTPS-only and trusts the proxy's
 #                        headers. Over plain HTTP, "true" makes logins
 #                        impossible. (default false)
+#   TZ                   time zone for new-page check schedules, e.g.
+#                        Europe/Berlin (default UTC)
 
 services:
   ausschnitt:
@@ -24,6 +26,7 @@ services:
       - "${AUSSCHNITT_DATA:-./data}:/app/data"
     environment:
       - BEHIND_HTTPS_PROXY=${BEHIND_HTTPS_PROXY:-false}
+      - TZ=${TZ:-UTC}
     logging:
       driver: json-file
       options:

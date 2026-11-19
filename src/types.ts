@@ -1,3 +1,5 @@
+import { Schedule } from './utils/schedule';
+
 export interface ComicRow {
     id: number;
     url: string;
@@ -42,6 +44,8 @@ export interface UserComic {
     notify_new_pages: boolean;
     /** Where tapping this comic's notifications goes; null means "the account's default" - see db.getEffectiveNotificationTarget. */
     notification_target: 'resume' | 'latest' | null;
+    /** This comic's own new-page check schedule; null means "the account's default". */
+    notify_schedule: Schedule | null;
 }
 
 // The shared comic merged with one user's reading state - the shape

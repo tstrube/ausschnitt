@@ -67,3 +67,33 @@
 label.settings-row {
     cursor: pointer;
 }
+
+/* A row whose control doesn't fit beside its label on a phone (a check
+   schedule): label on top, control below at full width. */
+.settings-row.settings-row-stacked {
+    flex-direction: column;
+    align-items: stretch;
+    gap: .5rem;
+}
+
+.schedule-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    align-items: center;
+}
+
+.schedule-days {
+    flex: 1 1 auto;
+}
+
+.schedule-days .btn {
+    flex: 1 1 0;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.schedule-time {
+    width: auto;
+    flex: 0 0 auto;
+}

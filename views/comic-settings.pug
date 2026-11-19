@@ -5,6 +5,7 @@ block head
     link(rel='stylesheet' href='/css/settings.css')
 
 block content
+    include includes/schedule-picker
     a.btn.btn-sm.btn-outline-secondary.mb-3(href=comic.selector_image ? `/reader/${comic.id}` : `/select/${comic.id}`) ← Back to comic
     h1= comic.title
 
@@ -103,6 +104,17 @@ block content
                         span.settings-hint On devices where notifications are turned on in Settings
                     .form-check.form-switch
                         input.form-check-input(type='checkbox' role='switch' name='notify_new_pages' id='notify-new-pages' checked=userComic.notify_new_pages)
+                .list-group-item.settings-row
+                    label.settings-label(for='notify-schedule') Check for new pages
+                        span.settings-hint Default: #{defaultScheduleText}
+                    select.form-select.form-select-sm#notify-schedule(name='notify_schedule')
+                        option(value='' selected=userComic.notify_schedule === null) Default
+                        option(value='own' selected=userComic.notify_schedule !== null) Own schedule
+                if userComic.notify_schedule
+                    .list-group-item.settings-row.settings-row-stacked
+                        span.settings-label This comic's schedule
+                            span.settings-hint No day selected: never
+                        +schedulePicker(userComic.notify_schedule, 'comic')
                 .list-group-item.settings-row
                     label.settings-label(for='notification-target') Tapping a notification opens
                         span.settings-hint Default: #{user.notification_target === 'latest' ? 'Newest page' : 'Resume point'}

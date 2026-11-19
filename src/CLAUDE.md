@@ -100,15 +100,23 @@
   the cap, never the same comic twice in one pass. `POST
   /admin/cache/clear-now` clears every comic regardless of subscribers.
 - **New-page notifications**: Web Push (`web-push`, VAPID keys generated
-  once into `settings`). `newPageNotifier.ts` ticks every 5 minutes; a
-  comic is checked at most every `new_page_check_hours` (`/settings`,
-  default 6, 0 = never), and only if a subscriber has a
-  `push_subscriptions` row and hasn't muted it
-  (`comic_subscriptions.notify_new_pages`). A check only looks: it
-  resolves "Latest" from the newest stored permalink and stores it as
-  `comics.latest_signature` (the URL, or `home:<image src>` for the
-  homepage); the first check is a baseline, a change notifies unless that
-  URL is already stored. Tapping opens `GET
+  once into `settings`). Checks run on schedules: weekdays and one time
+  of day (`utils/schedule.ts`), the account's default (`users.notify_days`
+  /`notify_time`, `/settings`) or a comic's own
+  (`comic_subscriptions.notify_days`/`notify_time`, both NULL = default),
+  in the server's time zone (`TZ`, see Deployment; `schedule.ts`'s
+  `serverTimeZone`). No day selected = never. `newPageNotifier.ts` ticks every minute; an (account,
+  comic) is due once its last scheduled moment passed since
+  `notify_checked_at` - a newly scheduled one starts with the next, one
+  missed by over 6 hours (server down) is skipped - and only if the account
+  has a `push_subscriptions` row and hasn't muted the comic
+  (`notify_new_pages`). A check only looks: it resolves "Latest" from the
+  newest stored permalink and stores it as `comics.latest_signature` (the
+  URL, or `home:<image src>` for the homepage), reused for 10 minutes so
+  accounts due together share one look at the site. Each (account, comic)
+  compares it with its own `notified_signature`: the first check is a
+  baseline, a change notifies unless that URL is already stored. Tapping
+  opens `GET
   /reader/:id/open/notification`, resolved at tap time to the comic's
   `notification_target`, else the account's
   (`db.getEffectiveNotificationTarget`) - the resume point, or the newest

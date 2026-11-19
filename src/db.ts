@@ -4,6 +4,7 @@ import fs from 'fs';
 import { Bookmark, Comic, ComicRow, Direction, Page, Panel, ReaderComic, ReadingDirection, SelectorFingerprint, UserComic } from './types';
 import { DB_PATH, imagesDirForComic } from './paths';
 import { comicUrlKey } from './utils/comicUrl';
+import { Schedule, formatDays, parseDays, parseTime } from './utils/schedule';
 
 let db: Database.Database;
 
@@ -97,7 +98,12 @@ function initDb(): void {
             created_at TEXT DEFAULT (datetime('now')),
             -- Tapping a new-page notification opens the resume point
             -- ('resume') or the newest page ('latest').
-            notification_target TEXT DEFAULT 'resume'
+            notification_target TEXT DEFAULT 'resume',
+            -- Default new-page check schedule (utils/schedule.ts): ISO
+            -- weekdays ("1,3,5", empty = never) and a time of day, in the
+            -- server's time zone.
+            notify_days TEXT NOT NULL DEFAULT '1,2,3,4,5,6,7',
+            notify_time TEXT NOT NULL DEFAULT '08:00'
         );
 
         CREATE TABLE IF NOT EXISTS sessions (
@@ -120,6 +126,13 @@ function initDb(): void {
             hide_scroll_nav INTEGER DEFAULT NULL,
             notify_new_pages INTEGER DEFAULT 1,
             notification_target TEXT DEFAULT NULL,
+            -- This comic's own check schedule, both NULL for the account's.
+            notify_days TEXT DEFAULT NULL,
+            notify_time TEXT DEFAULT NULL,
+            -- When this account's schedule last ran for this comic, and the
+            -- comic's "Latest" it was last told about (newPageNotifier.ts).
+            notify_checked_at INTEGER DEFAULT NULL,
+            notified_signature TEXT DEFAULT NULL,
             PRIMARY KEY (user_id, comic_id)
         );
 
@@ -184,6 +197,8 @@ export interface User {
     has_seen_intro: boolean;
     /** Where tapping a new-page notification takes this account. */
     notification_target: NotificationTarget;
+    /** Default new-page check schedule; comics may have their own. */
+    notify_schedule: Schedule;
 }
 
 export type NotificationTarget = 'resume' | 'latest';
@@ -195,6 +210,8 @@ interface UserRow {
     is_admin: number;
     has_seen_intro: number;
     notification_target: string | null;
+    notify_days: string;
+    notify_time: string;
 }
 
 function mapUserRow(row: UserRow): User {
@@ -204,8 +221,15 @@ function mapUserRow(row: UserRow): User {
         password_hash: row.password_hash,
         is_admin: !!row.is_admin,
         has_seen_intro: !!row.has_seen_intro,
-        notification_target: row.notification_target === 'latest' ? 'latest' : 'resume'
+        notification_target: row.notification_target === 'latest' ? 'latest' : 'resume',
+        notify_schedule: { days: parseDays(row.notify_days), time: parseTime(row.notify_time) ?? DEFAULT_NOTIFY_TIME }
     };
+}
+
+export const DEFAULT_NOTIFY_TIME = '08:00';
+
+export function setUserNotifySchedule(id: number, schedule: Schedule): void {
+    db.prepare(`UPDATE users SET notify_days = ?, notify_time = ? WHERE id = ?`).run(formatDays(schedule.days), schedule.time, id);
 }
 
 export function setUserNotificationTarget(id: number, target: NotificationTarget): void {
@@ -438,16 +462,27 @@ export function getReaderComic(userId: number, comicId: number): ReaderComic | n
 export function getUserComic(userId: number, comicId: number): UserComic | null {
     const row = db.prepare(`
         SELECT * FROM comic_subscriptions WHERE user_id = ? AND comic_id = ?
-    `).get(userId, comicId) as { user_id: number; comic_id: number; last_read_page: number | null; last_read_panel: number | null; reading_mode: string | null; start_at_first_panel: number; hide_scroll_nav: number | null; notify_new_pages: number; notification_target: string | null } | undefined;
+    `).get(userId, comicId) as { user_id: number; comic_id: number; last_read_page: number | null; last_read_panel: number | null; reading_mode: string | null; start_at_first_panel: number; hide_scroll_nav: number | null; notify_new_pages: number; notification_target: string | null; notify_days: string | null; notify_time: string | null } | undefined;
     if (!row) return null;
 
     return {
-        ...row,
+        user_id: row.user_id,
+        comic_id: row.comic_id,
+        last_read_page: row.last_read_page,
+        last_read_panel: row.last_read_panel,
+        reading_mode: row.reading_mode,
         start_at_first_panel: !!row.start_at_first_panel,
         hide_scroll_nav: hideScrollNavFromDb(row.hide_scroll_nav),
         notify_new_pages: !!row.notify_new_pages,
-        notification_target: row.notification_target === 'resume' || row.notification_target === 'latest' ? row.notification_target : null
+        notification_target: row.notification_target === 'resume' || row.notification_target === 'latest' ? row.notification_target : null,
+        notify_schedule: subscriptionSchedule(row.notify_days, row.notify_time)
     };
+}
+
+// A comic's own schedule, or null for the account's.
+function subscriptionSchedule(days: string | null, time: string | null): Schedule | null {
+    const parsed = parseTime(time);
+    return days === null || !parsed ? null : { days: parseDays(days), time: parsed };
 }
 
 // The comic's own choice if set, otherwise the account's default.
@@ -455,12 +490,18 @@ export function getEffectiveNotificationTarget(user: Pick<User, 'notification_ta
     return userComic.notification_target ?? user.notification_target;
 }
 
-export function updateUserComicSettings(userId: number, comicId: number, data: { reading_mode: string | null; start_at_first_panel: boolean; hide_scroll_nav: boolean | null; notify_new_pages: boolean; notification_target: NotificationTarget | null }): void {
+export function updateUserComicSettings(userId: number, comicId: number, data: { reading_mode: string | null; start_at_first_panel: boolean; hide_scroll_nav: boolean | null; notify_new_pages: boolean; notification_target: NotificationTarget | null; notify_schedule: Schedule | null }): void {
     db.prepare(`
         UPDATE comic_subscriptions
-        SET reading_mode = ?, start_at_first_panel = ?, hide_scroll_nav = ?, notify_new_pages = ?, notification_target = ?
+        SET reading_mode = ?, start_at_first_panel = ?, hide_scroll_nav = ?, notify_new_pages = ?, notification_target = ?,
+            notify_days = ?, notify_time = ?
         WHERE user_id = ? AND comic_id = ?
-    `).run(data.reading_mode || null, data.start_at_first_panel ? 1 : 0, data.hide_scroll_nav === null ? null : data.hide_scroll_nav ? 1 : 0, data.notify_new_pages ? 1 : 0, data.notification_target, userId, comicId);
+    `).run(
+        data.reading_mode || null, data.start_at_first_panel ? 1 : 0, data.hide_scroll_nav === null ? null : data.hide_scroll_nav ? 1 : 0,
+        data.notify_new_pages ? 1 : 0, data.notification_target,
+        data.notify_schedule ? formatDays(data.notify_schedule.days) : null, data.notify_schedule?.time ?? null,
+        userId, comicId
+    );
 }
 
 const SELECTOR_COLUMNS = ['selector_image', 'selector_next', 'selector_back', 'selector_first', 'selector_latest'] as const;
@@ -915,15 +956,6 @@ export function getLeastRecentlyAccessedComic(excludeIds: number[] = []): Comic 
 
 // --- New-page notifications (see src/newPageNotifier.ts) ---
 
-export const NEW_PAGE_CHECK_HOURS_OPTIONS = [0, 1, 3, 6, 12, 24];
-// How often each comic's site is asked for a new page; 0 = never. 6 hours
-// unless configured - often enough for daily comics, gentle on their sites.
-export function getNewPageCheckHours(): number {
-    const raw = getSetting('new_page_check_hours');
-    const hours = raw === null ? 6 : Number(raw);
-    return NEW_PAGE_CHECK_HOURS_OPTIONS.includes(hours) ? hours : 6;
-}
-
 export interface PushSubscriptionRow {
     id: number;
     user_id: number;
@@ -951,18 +983,45 @@ export function getPushSubscriptionsForUser(userId: number): PushSubscriptionRow
     return db.prepare(`SELECT * FROM push_subscriptions WHERE user_id = ?`).all(userId) as PushSubscriptionRow[];
 }
 
-// Comics worth checking at all: at least one subscriber who hasn't muted
-// this comic AND has a device with notifications turned on. With nobody
-// opted in, the checker never contacts any comic site.
-export function getComicsWatchedForNewPages(): (Comic & { latest_signature: string | null; latest_checked_at: number | null })[] {
+// Every (account, comic) a scheduled new-page check could be due for: the
+// account hasn't muted the comic AND has a device with notifications turned
+// on, and the comic can be crawled. With nobody opted in, the checker never
+// contacts any comic site.
+export interface ScheduledCheck {
+    user_id: number;
+    comic: Comic & { latest_signature: string | null; latest_checked_at: number | null };
+    schedule: Schedule;
+    notify_checked_at: number | null;
+    notified_signature: string | null;
+}
+
+export function getScheduledChecks(): ScheduledCheck[] {
     const rows = db.prepare(`
-        SELECT DISTINCT comics.* FROM comics
-        JOIN comic_subscriptions ON comic_subscriptions.comic_id = comics.id
-        JOIN push_subscriptions ON push_subscriptions.user_id = comic_subscriptions.user_id
+        SELECT comics.*,
+            comic_subscriptions.user_id AS sub_user_id,
+            comic_subscriptions.notify_days AS sub_notify_days, comic_subscriptions.notify_time AS sub_notify_time,
+            comic_subscriptions.notify_checked_at, comic_subscriptions.notified_signature,
+            users.notify_days AS user_notify_days, users.notify_time AS user_notify_time
+        FROM comic_subscriptions
+        JOIN comics ON comics.id = comic_subscriptions.comic_id
+        JOIN users ON users.id = comic_subscriptions.user_id
         WHERE comic_subscriptions.notify_new_pages = 1
           AND comics.selector_image IS NOT NULL AND comics.selector_latest IS NOT NULL
-    `).all() as (ComicRow & { latest_signature: string | null; latest_checked_at: number | null })[];
-    return rows.map(row => ({ ...mapComicRow(row), latest_signature: row.latest_signature, latest_checked_at: row.latest_checked_at }));
+          AND EXISTS (SELECT 1 FROM push_subscriptions WHERE push_subscriptions.user_id = comic_subscriptions.user_id)
+    `).all() as (ComicRow & {
+        latest_signature: string | null; latest_checked_at: number | null;
+        sub_user_id: number; sub_notify_days: string | null; sub_notify_time: string | null;
+        notify_checked_at: number | null; notified_signature: string | null;
+        user_notify_days: string; user_notify_time: string;
+    })[];
+    return rows.map(row => ({
+        user_id: row.sub_user_id,
+        comic: { ...mapComicRow(row), latest_signature: row.latest_signature, latest_checked_at: row.latest_checked_at },
+        schedule: subscriptionSchedule(row.sub_notify_days, row.sub_notify_time)
+            ?? { days: parseDays(row.user_notify_days), time: parseTime(row.user_notify_time) ?? DEFAULT_NOTIFY_TIME },
+        notify_checked_at: row.notify_checked_at,
+        notified_signature: row.notified_signature
+    }));
 }
 
 export function setComicLatestCheck(comicId: number, signature: string | null, checkedAt: number): void {
@@ -971,11 +1030,13 @@ export function setComicLatestCheck(comicId: number, signature: string | null, c
     `).run(signature, checkedAt, comicId);
 }
 
-// Who to tell about a new page in this comic: subscribers who haven't muted it.
-export function getUsersToNotifyForComic(comicId: number): number[] {
-    return (db.prepare(`
-        SELECT user_id FROM comic_subscriptions WHERE comic_id = ? AND notify_new_pages = 1
-    `).all(comicId) as { user_id: number }[]).map(r => r.user_id);
+// A scheduled check ran for this account and comic; `signature` is the
+// "Latest" it now knows about (unchanged when null).
+export function setScheduledCheck(userId: number, comicId: number, checkedAt: number, signature: string | null): void {
+    db.prepare(`
+        UPDATE comic_subscriptions SET notify_checked_at = ?, notified_signature = COALESCE(?, notified_signature)
+        WHERE user_id = ? AND comic_id = ?
+    `).run(checkedAt, signature, userId, comicId);
 }
 
 // Newest stored pages first - the new-page check resolves "Latest" from

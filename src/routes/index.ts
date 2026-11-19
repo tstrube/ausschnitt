@@ -7,6 +7,7 @@ import { formatDateTime } from '../utils/formatDate';
 import { PAGE_SIZE, parsePageParam } from '../utils/pagination';
 import { ReaderCache } from '../readerCache';
 import { applyReadingDirection } from '../utils/fetch';
+import { Schedule, WEEKDAYS, describeSchedule, parseDays, parseTime, serverTimeZone } from '../utils/schedule';
 
 export const router = Router();
 
@@ -42,8 +43,9 @@ router.get('/settings', (req: Request, res: Response) => {
         totalUsed: formatBytes(totalUsedBytes),
         globalReadingMode: db.getDefaultReadingMode(),
         globalHideScrollNav: db.getDefaultHideScrollNav(),
-        newPageCheckHours: db.getNewPageCheckHours(),
-        newPageCheckOptions: db.NEW_PAGE_CHECK_HOURS_OPTIONS
+        weekdays: WEEKDAYS,
+        scheduleText: describeSchedule(req.user!.notify_schedule),
+        timezoneLabel: serverTimeZone()
     });
 });
 
@@ -63,9 +65,12 @@ router.post('/settings/notification-target', (req: Request, res: Response) => {
     res.redirect('/settings');
 });
 
-router.post('/settings/new-page-check', (req: Request, res: Response) => {
-    const hours = Number(req.body.new_page_check_hours);
-    if (db.NEW_PAGE_CHECK_HOURS_OPTIONS.includes(hours)) db.setSetting('new_page_check_hours', String(hours));
+// The account's default new-page check schedule (no day checked = never).
+router.post('/settings/notification-schedule', (req: Request, res: Response) => {
+    db.setUserNotifySchedule(req.user!.id, {
+        days: parseDays(req.body.notify_days),
+        time: parseTime(req.body.notify_time) ?? req.user!.notify_schedule.time
+    });
     res.redirect('/settings');
 });
 
@@ -118,6 +123,8 @@ router.get('/comics/:id/settings', (req: Request, res: Response) => {
         tab,
         globalReadingMode: db.getDefaultReadingMode(),
         globalHideScrollNav: db.getDefaultHideScrollNav(),
+        weekdays: WEEKDAYS,
+        defaultScheduleText: describeSchedule(req.user!.notify_schedule),
         resumeHistory: db.getBookmarkHistoryPage(req.user!.id, comicId, resumeHistoryPage, PAGE_SIZE),
         resumeHistoryPage,
         resumeHistoryCap: db.MAX_BOOKMARK_HISTORY,
@@ -143,6 +150,18 @@ router.post('/comics/:id/bookmarks/:bookmarkId/delete', (req: Request, res: Resp
     res.redirect(`/comics/${comicId}/settings?tab=history`);
 });
 
+// A comic's own check schedule from its settings form, or null for the
+// account's. Switching to "own" (the day/time fields aren't on the form
+// yet) starts from the account's schedule.
+function comicSchedule(req: Request): Schedule | null {
+    if (req.body.notify_schedule !== 'own') return null;
+    if (req.body.notify_time === undefined) return { ...req.user!.notify_schedule };
+    return {
+        days: parseDays(req.body.notify_days),
+        time: parseTime(req.body.notify_time) ?? req.user!.notify_schedule.time
+    };
+}
+
 router.post('/comics/:id/settings', (req: Request, res: Response) => {
     const comicId = Number(req.params.id);
     if (!requireSubscribed(req, res, comicId)) return;
@@ -161,7 +180,8 @@ router.post('/comics/:id/settings', (req: Request, res: Response) => {
         notify_new_pages: !!req.body.notify_new_pages,
         notification_target: req.body.notification_target === 'resume' || req.body.notification_target === 'latest'
             ? req.body.notification_target
-            : null
+            : null,
+        notify_schedule: comicSchedule(req)
     });
     ReaderCache.reset(req.user!.id, comicId);
 

@@ -65,6 +65,7 @@ These settings can be changed without editing the Compose file, through environm
 | `AUSSCHNITT_PORT` | `3333` | Port on the host. |
 | `AUSSCHNITT_DATA` | `./data` | Host folder for the database and panels. |
 | `BEHIND_HTTPS_PROXY` | `false` | Set to `true` only behind a TLS-terminating reverse proxy that forwards `X-Forwarded-Proto`. Over plain HTTP, `true` prevents logging in, because session cookies are then only sent over HTTPS. |
+| `TZ` | `UTC` | Time zone the new-page check times in Settings mean, for example `Europe/Berlin`. |
 
 For example, a `.env` file:
 
@@ -95,6 +96,7 @@ Portainer clones the repository and builds the image itself. The Compose file co
    - `AUSSCHNITT_DATA` = `/srv/ausschnitt/data` (always set this - the default `./data` would end up inside Portainer's copy of the repository, a folder that's hard to find for backups)
    - `AUSSCHNITT_PORT` = the port you want, if not `3333`
    - `BEHIND_HTTPS_PROXY` = `true`, only behind an HTTPS reverse proxy (see [Docker](#docker))
+   - `TZ` = your time zone, for example `Europe/Berlin`, so new-page check times mean your local time
 5. Click **Deploy the stack**.
 
 To update, open the stack and click **Pull and redeploy**. The environment variables can be changed there too.
@@ -169,7 +171,7 @@ Ausschnitt is meant to read a comic the way a person would, not to mirror its si
 - **Pages are fetched while you read**, plus up to 5 pages ahead in the background so the next page is ready. Once read-ahead reaches the newest page, it waits 3 minutes before asking the site again.
 - **At most one request per site every half second**, however many people are reading or how much is being crawled in the background.
 - **Requests identify themselves** with the User-Agent `Ausschnitt (+https://github.com/tstrube/ausschnitt)`, so site owners can tell what is visiting and where to find out more.
-- **New-page checks are opt-in.** A comic is only checked for new pages if someone turned on notifications on a device and hasn't muted that comic, and then at most once per check interval (every 6 hours by default, configurable or off in Settings).
+- **New-page checks are opt-in.** A comic is only checked for new pages if someone turned on notifications on a device and hasn't muted that comic, and then only on that account's schedule (every day at 08:00 by default; set weekdays and a time in Settings, or per comic). Accounts checking the same comic within a few minutes share one request.
 - **Navigation never leaves the comic's site.** A link that points to another domain is not followed.
 - **Nothing is circumvented.** Ausschnitt doesn't solve bot challenges, log in, or disguise itself as a browser; a site that blocks it stays blocked.
 

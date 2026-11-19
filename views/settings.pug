@@ -4,6 +4,7 @@ block head
     link(rel='stylesheet' href='/css/settings.css')
 
 block content
+    include includes/schedule-picker
     h1.mb-3 Settings
 
     //- Each row is its own form and saves on change - no Save button, like a
@@ -42,11 +43,12 @@ block content
             .d-flex.flex-wrap.justify-content-end.gap-1.settings-value
                 button#notifyTest.btn.btn-sm.btn-outline-secondary(type='button' hidden) Send test
                 button#notifyToggle.btn.btn-sm.btn-outline-secondary(type='button' hidden)
-        form.list-group-item.settings-row(method='POST' action='/settings/new-page-check')
-            label.settings-label(for='new-page-check') Check for new pages
-            select#new-page-check.form-select.form-select-sm(name='new_page_check_hours' onchange='this.form.submit()')
-                each hours in newPageCheckOptions
-                    option(value=hours selected=hours === newPageCheckHours)= hours ? `every ${hours} h` : 'never'
+        form.list-group-item.settings-row.settings-row-stacked(method='POST' action='/settings/notification-schedule' onchange='this.submit()')
+            span.settings-label Check for new pages
+                span.settings-hint #{scheduleText} · server time (#{timezoneLabel}) · each comic can have its own
+            +schedulePicker(user.notify_schedule, 'default')
+            noscript
+                button.btn.btn-sm.btn-primary(type='submit') Save
         form.list-group-item.settings-row(method='POST' action='/settings/notification-target')
             label.settings-label(for='notification-target') Tapping a notification opens
             select#notification-target.form-select.form-select-sm(name='notification_target' onchange='this.form.submit()')

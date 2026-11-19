@@ -15,7 +15,7 @@ Styling rules (header chrome, icons, buttons, theme) are in
 - **Global settings page**: `GET /settings` (`settings.pug`), the navbar's
   ⚙ on every page except the readers (whose ⚙ is that comic's settings).
   Theme, default reading mode and scroll bottom bar, new-page
-  notifications (device toggle, check interval, notification target),
+  notifications (device toggle, check schedule, notification target),
   disk usage and free space, and Clear all (single-user only). Each
   `POST /settings/*` (and `/clear-all`) redirects back to `/settings`. The
   comic list holds only comics.
@@ -25,7 +25,10 @@ Styling rules (header chrome, icons, buttons, theme) are in
   dropdown one width (`min(13rem, 50%)`), checkboxes as right-aligned
   switches whose whole row is the `<label>`, saving on change (no Save
   button). Dropdown options stay short enough for that width; a per-comic
-  "Default" option shows the inherited value as a hint under the label.
+  "Default" option shows the inherited value as a hint under the label. A
+  control too wide to sit beside its label (the check schedule's weekday
+  toggles and time, `includes/schedule-picker.pug`) goes in a
+  `.settings-row-stacked` row below it.
 - **Comic settings page**: `comic-settings.pug` (`GET/POST
   /comics/:id/settings`), with a "Back to comic" button to the comic's
   reader (or Select Elements, before selectors exist), three tabs as plain

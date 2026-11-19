@@ -150,7 +150,8 @@ The app listens on `3000` inside the container; the compose file
 publishes it on `AUSSCHNITT_PORT` (default `3333`) and mounts
 `AUSSCHNITT_DATA` (default `./data`) as `/app/data`, so a Portainer
 repository stack - whose compose file isn't editable - is configured
-through environment variables. A local `npm start` uses `data/`.
+through environment variables. `TZ` (default `UTC`) is the time zone the
+new-page check schedules run in. A local `npm start` uses `data/`.
 
 ## Working in this repo
 

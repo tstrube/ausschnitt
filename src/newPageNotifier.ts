@@ -2,6 +2,7 @@ import webpush from 'web-push';
 import * as db from './db';
 import { Comic } from './types';
 import { getComicImageSrc, isComicHomeUrl, resolveNavUrl } from './utils/fetch';
+import { lastOccurrence, serverTimeZone } from './utils/schedule';
 
 // Background check for new pages, plus the Web Push delivery that tells
 // subscribed devices about them (public/sw.js shows the notification).
@@ -15,12 +16,24 @@ import { getComicImageSrc, isComicHomeUrl, resolveNavUrl } from './utils/fetch';
 // - the comic's homepage (a moving target, see fetch.ts's
 //   checkHomepageForNewPage): its URL never changes, so the image it's
 //   showing identifies the page instead.
-// The first check of a comic only records a baseline. A change notifies,
-// unless the page it now points at is already stored (someone has already
-// read up to it).
+//
+// Checks run on each account's schedule (weekdays and a time of day in the
+// server's time zone, per comic or the account's default -
+// utils/schedule.ts). Each
+// (account, comic) remembers the "Latest" it was last told about, so
+// accounts on different schedules each hear about a new page once. An
+// account's first check of a comic only records a baseline. A change
+// notifies, unless the page it now points at is already stored (someone
+// has already read up to it). Accounts due within a few minutes of each
+// other share one look at the comic's site (FRESH_CHECK_MS).
 
-const TICK_MS = 5 * 60 * 1000;
+const TICK_MS = 60 * 1000;
 const FIRST_TICK_DELAY_MS = 60 * 1000;
+// A look at a comic's site this recent is reused rather than repeated.
+const FRESH_CHECK_MS = 10 * 60 * 1000;
+// A scheduled time missed by more than this (the server was down) is
+// skipped rather than run late.
+const MAX_LATE_MS = 6 * 60 * 60 * 1000;
 
 // Generated once and kept in settings - new keys would invalidate every
 // device's existing subscription.
@@ -102,21 +115,43 @@ async function latestSignature(comic: Comic): Promise<{ signature: string; lates
     return { signature: latestUrl, latestUrl };
 }
 
-async function checkComic(comic: Comic & { latest_signature: string | null }): Promise<void> {
-    const result = await latestSignature(comic);
-    db.setComicLatestCheck(comic.id, result?.signature ?? null, Date.now());
-    if (!result || !comic.latest_signature || comic.latest_signature === result.signature) return;
-    if (!isComicHomeUrl(result.latestUrl, comic.url) && db.getPageByUrl(comic.id, result.latestUrl)) return;
-
-    console.log(`New page detected for "${comic.title}": ${result.latestUrl}`);
-    for (const userId of db.getUsersToNotifyForComic(comic.id)) {
-        await sendToUser(userId, {
-            title: comic.title,
-            body: 'New page available',
-            comicId: comic.id,
-            tag: `comic-${comic.id}`
-        });
+// The comic's "Latest" right now - from a look at its site, or a recent
+// enough earlier one. Null if the site couldn't tell.
+async function currentSignature(comic: db.ScheduledCheck['comic'], now: number): Promise<{ signature: string; latestUrl: string } | null> {
+    if (comic.latest_checked_at && now - comic.latest_checked_at < FRESH_CHECK_MS) {
+        if (!comic.latest_signature) return null;
+        const homepage = comic.latest_signature.startsWith('home:');
+        return { signature: comic.latest_signature, latestUrl: homepage ? comic.url : comic.latest_signature };
     }
+    try {
+        const result = await latestSignature(comic);
+        db.setComicLatestCheck(comic.id, result?.signature ?? null, now);
+        comic.latest_signature = result?.signature ?? comic.latest_signature;
+        comic.latest_checked_at = now;
+        return result;
+    } catch (err) {
+        // Site down, markup changed, ... - try again at the next scheduled
+        // time rather than every tick.
+        db.setComicLatestCheck(comic.id, null, now);
+        comic.latest_checked_at = now;
+        console.error(`New-page check failed for "${comic.title}":`, err);
+        return null;
+    }
+}
+
+async function runCheck(check: db.ScheduledCheck, now: number): Promise<void> {
+    const result = await currentSignature(check.comic, now);
+    db.setScheduledCheck(check.user_id, check.comic.id, now, result?.signature ?? null);
+    if (!result || !check.notified_signature || check.notified_signature === result.signature) return;
+    if (!isComicHomeUrl(result.latestUrl, check.comic.url) && db.getPageByUrl(check.comic.id, result.latestUrl)) return;
+
+    console.log(`New page detected for "${check.comic.title}": ${result.latestUrl}`);
+    await sendToUser(check.user_id, {
+        title: check.comic.title,
+        body: 'New page available',
+        comicId: check.comic.id,
+        tag: `comic-${check.comic.id}`
+    });
 }
 
 let running = false;
@@ -125,20 +160,28 @@ async function tick(): Promise<void> {
     if (running) return;
     running = true;
     try {
-        const hours = db.getNewPageCheckHours();
-        if (!hours) return;
         const now = Date.now();
-        // One comic at a time - this runs in the background, there's no hurry.
-        for (const comic of db.getComicsWatchedForNewPages()) {
-            if (comic.latest_checked_at && now - comic.latest_checked_at < hours * 60 * 60 * 1000) continue;
-            try {
-                await checkComic(comic);
-            } catch (err) {
-                // Site down, markup changed, ... - try again next interval
-                // rather than every tick.
-                db.setComicLatestCheck(comic.id, null, Date.now());
-                console.error(`New-page check failed for "${comic.title}":`, err);
+        const timeZone = serverTimeZone();
+        // One check at a time - this runs in the background, there's no
+        // hurry. Comics are shared, so the same comic object serves every
+        // account due for it (currentSignature updates it in place).
+        const comics = new Map<number, db.ScheduledCheck['comic']>();
+        for (const check of db.getScheduledChecks()) {
+            check.comic = comics.get(check.comic.id) ?? check.comic;
+            comics.set(check.comic.id, check.comic);
+            const due = lastOccurrence(check.schedule, timeZone, now);
+            if (due === null) continue;
+            if (check.notify_checked_at === null) {
+                // Newly scheduled: starts with the next scheduled time.
+                db.setScheduledCheck(check.user_id, check.comic.id, now, null);
+                continue;
             }
+            if (check.notify_checked_at >= due) continue;
+            if (now - due > MAX_LATE_MS) {
+                db.setScheduledCheck(check.user_id, check.comic.id, now, null);
+                continue;
+            }
+            await runCheck(check, now);
         }
     } finally {
         running = false;
