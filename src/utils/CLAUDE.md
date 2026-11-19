@@ -9,14 +9,17 @@ these are the invariants a change must keep:
   cell only changes by the bubble and edge-line rules below). A gutter is
   a band of 2+ lines straight across the area being cut, every line clean
   in one gutter color. The page is cut into rows, each row into columns,
-  and so on, while every part is panel-sized; at the page level a too-small part at the top or bottom is the title or
-  footer and is dropped. No special case for a single page: a fix stays
+  and so on, while every part is panel-sized (8% of the page, a very tall
+  page measured as if cut to 1.5 times its width); at the page level a
+  too-small part at the top or bottom is the title or footer and is
+  dropped. No special case for a single page: a fix stays
   inside this model or leaves the page whole.
 - **The safe direction is no split.** Anything that isn't a confident
   split stays one whole panel - an unsplit page is a minor inconvenience,
   a false split a broken one. A row gutter cut in one column but blocked in
   its neighbor leaves the whole page unsplit (the panels couldn't be read
-  in order). Blocked means a gap: the strip is clearly lighter than the
+  in order), and so do cells covering less than half the page
+  (`MIN_COVERAGE`: the rest was dropped as too small). Blocked means a gap: the strip is clearly lighter than the
   column's lines right around it, not just a frameless panel's own
   background.
 - **Gutter colors are measured per page**: the margin color from the
@@ -48,9 +51,11 @@ these are the invariants a change must keep:
   bubble still counts when at most half of it lies under bubbles
   (`bubbleShare`) and drawn frame lines run along both sides
   (`isFramed`). The cell holding most of the bubble grows to take it in
-  whole, and the rest of the added strip is painted in the page's measured
-  gutter color, the outline redrawn toward it (`withBubbles`,
-  `PanelCrop.paint`); painted panels are saved as PNG.
+  whole - so does every cell holding at least 40% of it, so a bubble
+  shared across a gutter shows whole in both panels - and the rest of the
+  added strip is painted in the page's measured gutter color, the outline
+  redrawn toward it (`withBubbles`, `PanelCrop.paint`); painted panels are
+  saved as PNG.
 - **No light lines in the dark reader**: every panel side along a gutter
   loses 1px (`insetFromGutters`), plus up to 2 antialiased lines blended
   between gutter and frame (`trimBlendLines`, a line lighter than the next

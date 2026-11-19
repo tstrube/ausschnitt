@@ -399,6 +399,8 @@ const LINE_END_SLACK_PX = 3;
 // Parts smaller than this fraction of the page (or MIN_PANEL_PX) aren't
 // panels.
 const MIN_PANEL_FRACTION = 0.08;
+const MIN_COVERAGE = 0.5;
+const MAX_PAGE_ASPECT = 1.5;
 const MIN_PANEL_PX = 30;
 const MAX_PANELS = 16;
 // A cell this nearly all gutter color holds no panel.
@@ -721,7 +723,9 @@ function panelsWith(r: Raster, colors: GutterColors): Box[] {
     if (page.width <= 0 || page.height <= 0) return [];
     const minSize = {
         width: Math.max(MIN_PANEL_PX, r.width * MIN_PANEL_FRACTION),
-        height: Math.max(MIN_PANEL_PX, r.height * MIN_PANEL_FRACTION)
+        // A very tall page (a long scroll of panels) is measured as if
+        // cut to a usual page's proportion (MAX_PAGE_ASPECT).
+        height: Math.max(MIN_PANEL_PX, Math.min(r.height, r.width * MAX_PAGE_ASPECT) * MIN_PANEL_FRACTION)
     };
     // Joining text gaps never makes a page readable in order that wasn't:
     // the order check also runs on the cut without it. Both are checked
@@ -738,6 +742,10 @@ function panelsWith(r: Raster, colors: GutterColors): Box[] {
     if (rowsBrokenAcrossColumns(r, root, colors.inside)) return [];
     let cells = leaves(root).filter(b => gutterShare(r, b, colors.inside) < EMPTY_CELL_FRACTION);
     if (cells.length < 2 || cells.length > MAX_PANELS) return [];
+    // Panels make up the page: cells covering only a small part of it (all
+    // the rest dropped as too small) are no split of it.
+    const covered = cells.reduce((sum, c) => sum + c.width * c.height, 0);
+    if (covered < page.width * page.height * MIN_COVERAGE) return [];
     // Inner gutters in another color than the page's margin may continue
     // as a frame around the whole panel area (a black frame on a white
     // page): the cut leaves it on the panels' outer sides only.
@@ -1145,18 +1153,22 @@ export interface PanelCrop extends Box {
 }
 
 // A bubble whose shape reaches out of the cell holding most of it belongs
-// to that cell, whose crop grows to take in the bubble with its outline. In
+// to that cell, whose crop grows to take in the bubble with its outline - and
+// so does every other cell holding at least SHARED_BUBBLE_FRACTION of it: a
+// bubble shared across a gutter (a tail into each panel) shows whole in
+// both, not cut in one. In
 // the added strip, pixels beyond the outline (BUBBLE_OUTLINE_PX from the
 // shape) are painted in the gutter color; the outline is redrawn between
 // its own color and the gutter color by each pixel's darkness, so no
 // fringe of the neighboring panel's colors stays around the bubble.
+const SHARED_BUBBLE_FRACTION = 0.4;
+
 function withBubbles(r: Raster, fitted: (Box & { cell: Box })[], gutter: RGB): PanelCrop[] {
     const cells = fitted.map(f => f.cell);
     const crops: { cell: Box; crop: Box; bubbles: Bubble[] }[] = fitted.map(({ cell, ...crop }) => ({ cell: crop, crop: { ...crop }, bubbles: [] }));
     const inBox = (b: Box, x: number, y: number) => x >= b.left && x < b.left + b.width && y >= b.top && y < b.top + b.height;
     for (const bubble of r.bubbles) {
         const counts = cells.map(() => 0);
-        let outsideOwner = false;
         for (let y = 0; y < bubble.box.height; y++) {
             for (let x = 0; x < bubble.box.width; x++) {
                 if (!bubble.shape[y * bubble.box.width + x]) continue;
@@ -1164,29 +1176,34 @@ function withBubbles(r: Raster, fitted: (Box & { cell: Box })[], gutter: RGB): P
                 if (i >= 0) counts[i]++;
             }
         }
-        const owner = counts.indexOf(Math.max(...counts));
-        if (owner < 0 || counts[owner] === 0) continue;
-        const cell = cells[owner];
-        for (let y = 0; y < bubble.box.height && !outsideOwner; y++) {
-            for (let x = 0; x < bubble.box.width; x++) {
-                if (bubble.shape[y * bubble.box.width + x] && !inBox(cell, bubble.box.left + x, bubble.box.top + y)) {
-                    outsideOwner = true;
-                    break;
+        const most = Math.max(...counts);
+        if (most === 0) continue;
+        const total = bubble.shape.reduce((sum, v) => sum + v, 0);
+        const owners = counts.flatMap((n, i) => n > 0 && (n === most || n >= total * SHARED_BUBBLE_FRACTION) ? [i] : []);
+        for (const owner of owners) {
+            const cell = cells[owner];
+            let outsideOwner = false;
+            for (let y = 0; y < bubble.box.height && !outsideOwner; y++) {
+                for (let x = 0; x < bubble.box.width; x++) {
+                    if (bubble.shape[y * bubble.box.width + x] && !inBox(cell, bubble.box.left + x, bubble.box.top + y)) {
+                        outsideOwner = true;
+                        break;
+                    }
                 }
             }
+            if (!outsideOwner) continue;
+            const entry = crops[owner];
+            const c = entry.crop;
+            const left = Math.min(c.left, bubble.box.left);
+            const top = Math.min(c.top, bubble.box.top);
+            entry.crop = {
+                left,
+                top,
+                width: Math.max(c.left + c.width, bubble.box.left + bubble.box.width) - left,
+                height: Math.max(c.top + c.height, bubble.box.top + bubble.box.height) - top
+            };
+            entry.bubbles.push(bubble);
         }
-        if (!outsideOwner) continue;
-        const entry = crops[owner];
-        const c = entry.crop;
-        const left = Math.min(c.left, bubble.box.left);
-        const top = Math.min(c.top, bubble.box.top);
-        entry.crop = {
-            left,
-            top,
-            width: Math.max(c.left + c.width, bubble.box.left + bubble.box.width) - left,
-            height: Math.max(c.top + c.height, bubble.box.top + bubble.box.height) - top
-        };
-        entry.bubbles.push(bubble);
     }
 
     const lum = (c: RGB) => 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;

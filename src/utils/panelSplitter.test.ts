@@ -786,6 +786,42 @@ test('faintly tinted frameless panels split along an exact white gutter', () => 
     ]);
 });
 
+test('a very tall page of stacked panels splits into them, not into a sliver at its bottom', () => {
+    // White page 400 x 3800: twelve 300px panels stacked with 12px
+    // gutters - each smaller than 8% of the page's height - and a caption
+    // below them.
+    const width = 400, height = 3800;
+    const buffer = Buffer.alloc(width * height * 3, 255);
+    for (let k = 0; k < 12; k++) fillRGB(buffer, width, 0, 20 + k * 312, 400, 320 + k * 312, [120 + k * 5, 140, 160]);
+    for (let x = 150; x < 250; x += 8) fillRGB(buffer, width, x, 3775, x + 5, 3790, [0, 0, 0]);
+
+    const boxes = detectPanelBoxes(buffer, width, height, 3);
+    assert.deepEqual(boxes.map(b => [b.left, b.top, b.width, b.height]),
+        Array.from({ length: 12 }, (_, k) => [0, 21 + k * 312, 400, 298]));
+});
+
+test('a speech bubble shared half and half across a gutter shows whole in both panels', () => {
+    // Black-framed page, white 6px gutters, four panels. One bubble
+    // (outline, white inside, lettering) sits across the gutter between the
+    // top two, about half in each.
+    const width = 400, height = 580;
+    const data = makeFramedPage(width, height, [
+        { x0: 0, y0: 20, x1: 197, y1: 280, v: 120 },
+        { x0: 203, y0: 20, x1: 400, y1: 280, v: 140 },
+        { x0: 0, y0: 286, x1: 197, y1: 560, v: 160 },
+        { x0: 203, y0: 286, x1: 400, y1: 560, v: 180 }
+    ]);
+    fillRGB(data, width, 140, 60, 260, 120, [0, 0, 0]);
+    fillRGB(data, width, 142, 62, 258, 118, [255, 255, 255]);
+    for (let x = 150; x < 250; x += 7) fillRGB(data, width, x, 80, x + 3, 90, [0, 0, 0]);
+
+    const boxes = detectPanelBoxes(data, width, height, 3);
+    assert.equal(boxes.length, 4);
+    assert.ok(boxes[0].left + boxes[0].width >= 260, JSON.stringify(boxes[0]));
+    assert.ok(boxes[1].left <= 140, JSON.stringify(boxes[1]));
+    assert.ok(boxes[0].paint && boxes[1].paint, 'both panels are painted beside the bubble');
+});
+
 test('lines of text on a white panel stay one panel', () => {
     // White page: gray panels above and below, between them a frameless
     // text panel - lines of "lettering" (thin strokes) with white gaps
