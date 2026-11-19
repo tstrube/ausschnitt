@@ -1,0 +1,22 @@
+/* Installed on iOS, the page runs up behind the status bar
+   (black-translucent in layout.pug) - otherwise iOS draws its own black bar
+   there and fades it into the header, blurring the header buttons. The top
+   bar of each page reaches up behind the clock in its own color, and a
+   strip in that color stays there while the page scrolls. The inset is 0
+   everywhere else, so none of this shows in a browser tab. */
+.navbar,
+.reader-topbar,
+.select-topbar {
+    border-top: env(safe-area-inset-top, 0px) solid #212529;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-top, 0px);
+    background: #212529;
+    z-index: 1090;
+}

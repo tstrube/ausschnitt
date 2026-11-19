@@ -12,7 +12,8 @@ html
         meta(name='apple-mobile-web-app-title' content='Ausschnitt')
         meta(name='apple-mobile-web-app-capable' content='yes')
         meta(name='mobile-web-app-capable' content='yes')
-        meta(name='apple-mobile-web-app-status-bar-style' content='black')
+        //- The page draws behind the status bar itself - see css/status-bar.css.
+        meta(name='apple-mobile-web-app-status-bar-style' content='black-translucent')
         //- Runs synchronously, before Bootstrap's CSS paints anything, so the
         //- page never flashes the wrong theme on load.
         script.
@@ -26,6 +27,7 @@ html
         link(rel='stylesheet' href='/vendor/bootstrap/bootstrap.min.css')
         link(rel='stylesheet' href='/css/toast.css')
         link(rel='stylesheet' href='/css/buttons.css')
+        link(rel='stylesheet' href='/css/status-bar.css')
         block head
     body
         script(src='/js/toast.js')
