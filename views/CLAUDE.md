@@ -24,7 +24,8 @@ Styling rules (header chrome, icons, buttons, theme) are in
   headings, `.settings-row` with the label left and control right, every
   dropdown one width (`min(13rem, 50%)`), checkboxes as right-aligned
   switches whose whole row is the `<label>`, saving on change (no Save
-  button). Dropdown options stay short enough for that width; a per-comic
+  button) - the reloaded page keeps its scroll position
+  (`public/js/keepScroll.js`). Dropdown options stay short enough for that width; a per-comic
   "Default" option shows the inherited value as a hint under the label. A
   control too wide to sit beside its label (the check schedule's weekday
   toggles and time, `includes/schedule-picker.pug`) goes in a

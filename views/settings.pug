@@ -39,7 +39,9 @@ block content
         .list-group-item.settings-row
             .settings-label
                 | 🔔 New-page notifications
-                span#notifyStatus.settings-hint
+                //- Holds a line from the start: notifications.js fills it in after
+                //- the page is shown, and the rows below mustn't move then.
+                span#notifyStatus.settings-hint &nbsp;
             .d-flex.flex-wrap.justify-content-end.gap-1.settings-value
                 button#notifyTest.btn.btn-sm.btn-outline-secondary(type='button' hidden) Send test
                 button#notifyToggle.btn.btn-sm.btn-outline-secondary(type='button' hidden)
@@ -72,3 +74,4 @@ block content
     script(src='/js/twoClickConfirm.js')
     script(src='/js/comicList.js')
     script(src='/js/notifications.js')
+    script(src='/js/keepScroll.js')

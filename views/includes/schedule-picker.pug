@@ -7,4 +7,4 @@ mixin schedulePicker(schedule, idPrefix)
             each weekday in weekdays
                 input.btn-check(type='checkbox' name='notify_days' value=weekday.day id=`${idPrefix}-day-${weekday.day}` autocomplete='off' checked=schedule.days.includes(weekday.day))
                 label.btn.btn-sm.btn-outline-secondary(for=`${idPrefix}-day-${weekday.day}` title=weekday.label)= weekday.short
-        input.form-control.form-control-sm.schedule-time(type='time' name='notify_time' value=schedule.time aria-label='Time' required)
+        input.form-control.form-control-sm.schedule-time(type='time' name='notify_time' id=`${idPrefix}-time` value=schedule.time aria-label='Time' required)
