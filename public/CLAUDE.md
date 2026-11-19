@@ -48,11 +48,15 @@
   bar may shrink them on narrow screens). Select Elements' step and hint
   text colors (`css/select.css`) are tuned for its dark bar.
 - **Status bar** (installed app on iOS): `black-translucent`, so the page
-  draws behind the clock itself - with plain `black`, iOS fades its own bar
-  into the header and blurs the header buttons. `css/status-bar.css` makes
-  each page's top bar reach up behind it (a top border of
-  `env(safe-area-inset-top)` in `#212529`) and keeps a fixed strip of that
-  color there while scrolling. A new kind of top bar gets the same border.
+  draws behind the clock itself - with plain `black`, iOS up to 26 fades its
+  own bar into the header. iOS 27 ignores that meta tag and blurs the top
+  edge into the page background unless a fixed element with a background
+  sits at the top (at least 6px high, 80% wide, within 4px of the top): the
+  status bar then takes its color. `.status-bar-backdrop` (`layout.pug`,
+  every page, `css/status-bar.css`) is that element, `#212529`, as high as
+  `env(safe-area-inset-top)` (6px minimum); each page's top bar reaches up
+  behind it with a top border of that inset in the same color. A new kind
+  of top bar gets the same border.
 - **Buttons** (`css/buttons.css`, global): theme-scoped CSS-variable
   overrides fix the low-contrast Bootstrap variants
   (`.btn-outline-warning` in light mode, `.btn-outline-secondary` in dark

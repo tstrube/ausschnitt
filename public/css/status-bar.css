@@ -1,22 +1,25 @@
-/* Installed on iOS, the page runs up behind the status bar
-   (black-translucent in layout.pug) - otherwise iOS draws its own black bar
-   there and fades it into the header, blurring the header buttons. The top
-   bar of each page reaches up behind the clock in its own color, and a
-   strip in that color stays there while the page scrolls. The inset is 0
-   everywhere else, so none of this shows in a browser tab. */
+/* Installed on iOS, the page runs up behind the status bar. Up to iOS 26
+   black-translucent (layout.pug) keeps iOS from drawing its own black bar
+   there and fading it into the header; from iOS 27 that meta tag is
+   ignored, and iOS blurs the top edge into the page's background unless a
+   fixed element with a background sits at the top (at least 6px high, 80%
+   wide, within 4px of the top) - then the status bar takes its color,
+   solid. .status-bar-backdrop (layout.pug, every page) is that element, in
+   the header color, covering the status bar while the page scrolls; each
+   page's top bar reaches up behind it in the same color. The inset is 0 in
+   a browser tab, where the backdrop is a 6px strip over the dark header. */
 .navbar,
 .reader-topbar,
 .select-topbar {
     border-top: env(safe-area-inset-top, 0px) solid #212529;
 }
 
-body::before {
-    content: "";
+.status-bar-backdrop {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
-    height: env(safe-area-inset-top, 0px);
+    height: max(6px, env(safe-area-inset-top, 0px));
     background: #212529;
     z-index: 1090;
 }

@@ -30,6 +30,8 @@ html
         link(rel='stylesheet' href='/css/status-bar.css')
         block head
     body
+        //- Holds the iOS status bar's color - see css/status-bar.css.
+        .status-bar-backdrop(aria-hidden='true')
         script(src='/js/toast.js')
         script(src='/js/theme.js')
         script(src='/js/pwa.js')
