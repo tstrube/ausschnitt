@@ -255,9 +255,25 @@ block content
         li #[strong Check for new pages] in #[strong Settings] sets when your comics are checked: tap the weekdays, and set a time - the server's time, shown next to it. No day selected means never. Comics are only checked while at least one of your devices has notifications on.
         li Each comic can have its own schedule: #[strong Check for new pages] → #[strong Own schedule] in that comic's #[strong Settings] - for a comic that updates on Mondays and Thursdays, say.
         li Mute a single comic with #[strong Notify me about new pages] in that comic's #[strong Settings].
+        li Comics with new pages you haven't opened yet show #[strong New ›] in your comic list - it opens them the way tapping their notification would. Opening the comic in any way clears it.
+        li #[strong Several comics at once]: when more than one of your comics has new pages in the same check, you get one notification for all of them, which opens your comic list (#[strong Combine into one], the default) - or one per comic.
         li #[strong Tapping a notification opens] chooses where it takes you: #[strong the first new page] (the default) - the oldest page you haven't seen yet, so after skipping a day of a daily comic you start with yesterday's - your #[strong resume point], or #[strong the newest page]. The new-page jumps work like ⏭: your resume point stays where it was until you save a new one. Set your default in #[strong Settings]; any comic can override it in its #[strong Settings].
     p.
         Notifications need the server to be reached over #[strong HTTPS]. On an
         iPhone or iPad, add Ausschnitt to your Home Screen first (see above)
         and turn them on from the installed app - Safari itself doesn't
         offer them.
+    h3.h5 Without Google or Apple: ntfy
+    p.
+        A browser's notifications always pass through its maker's push
+        service - Apple's, Google's or Mozilla's. They can't read them, but
+        they see when one reaches your device. On a phone without Google's
+        services (GrapheneOS without Google Play, for example) browsers
+        can't receive any at all. The #[a(href='https://ntfy.sh' target='_blank' rel='noopener') ntfy] app is the alternative: it keeps its own
+        connection to an ntfy server - the public ntfy.sh, or one you run
+        yourself - and shows what Ausschnitt sends there.
+    ul
+        li Install the ntfy app (on Android also from F-Droid) and subscribe to a topic - on ntfy.sh, pick a #[strong long, random name]: anyone who knows it can read and send to it. Your own server can require an access token instead.
+        li In #[strong Settings] → #[strong ntfy], enter the topic's address as the app shows it (#[code https://ntfy.sh/your-topic]) and, if your server needs one, its access token, then #[strong Save] and #[strong Send test].
+        li Tapping one opens the comic in your browser, exactly like a browser notification would. Both can be on at the same time; the schedule and the other settings apply to both.
+        li An ntfy server on your local network can only be set by an admin - other accounts can use public addresses.

@@ -484,15 +484,24 @@ function trimMargin(r: Raster, box: Box, colors: RGB[]): Box {
 // The gutters across a box along one axis: runs of at least `minLength`
 // clean lines, not at its edge - and, where a speech bubble crosses a
 // gutter, runs clean apart from the bubble, at most half under bubbles
-// (bubbleShare), that lie between drawn panel frames (isFramed). Either way
-// in a gutter color line by line on average (onGutterColor).
+// (bubbleShare), that lie between drawn panel frames (isFramed), with room
+// for a full panel on both sides (CROSSED_MIN_PART_FRACTION - a light strip
+// in the artwork a bubble overlaps, like a door frame, often leaves only a
+// sliver). Either way in a gutter color line by line on average
+// (onGutterColor).
+const CROSSED_MIN_PART_FRACTION = 0.15;
+
 function findGutters(r: Raster, box: Box, columns: boolean, colors: RGB[], minLength: number, noise = CLEAN_LINE_NOISE): Band[] {
     const from = columns ? box.top : box.left;
     const to = columns ? box.top + box.height : box.left + box.width;
+    const start = columns ? box.left : box.top;
+    const end = columns ? box.left + box.width : box.top + box.height;
+    const minPart = (columns ? r.width : r.height) * CROSSED_MIN_PART_FRACTION;
     const clean = cleanRuns(r, box, columns, colors, minLength, noise, false);
     const crossed = cleanRuns(r, box, columns, colors, minLength, noise, true)
         .filter(b => !clean.some(c => c.from < b.to && c.to > b.from) && bubbleShare(r, b, columns, from, to) <= MAX_BUBBLE_SHARE
-            && isFramed(r, b, columns, from, to, colors));
+            && isFramed(r, b, columns, from, to, colors)
+            && b.from - start >= minPart && end - b.to >= minPart);
     return [...clean, ...crossed]
         .filter(b => onGutterColor(r, b, columns, from, to, colors))
         .sort((x, y) => x.from - y.from);

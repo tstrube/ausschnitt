@@ -7,6 +7,7 @@ import { formatDateTime } from '../utils/formatDate';
 import { PAGE_SIZE, parsePageParam } from '../utils/pagination';
 import { ReaderCache } from '../readerCache';
 import { applyReadingDirection } from '../utils/fetch';
+import { isAllowedNtfyUrl, parseNtfyUrl } from '../utils/ntfy';
 import { Schedule, WEEKDAYS, describeSchedule, parseDays, parseTime, serverTimeZone } from '../utils/schedule';
 
 export const router = Router();
@@ -19,7 +20,7 @@ router.get('/', (req: Request, res: Response) => {
         usageByComic[comic.id] = formatBytes(db.getComicDiskUsageBytes(comic.id));
     }
 
-    res.render('index', { comics, usageByComic });
+    res.render('index', { comics, usageByComic, withNewPages: db.getComicIdsWithNewPages(req.user!.id) });
 });
 
 // Global (not per-comic) preferences. The navbar's ⚙ links here; the
@@ -45,6 +46,7 @@ router.get('/settings', (req: Request, res: Response) => {
         globalHideScrollNav: db.getDefaultHideScrollNav(),
         weekdays: WEEKDAYS,
         scheduleText: describeSchedule(req.user!.notify_schedule),
+        ntfyError: typeof req.query.ntfy === 'string' ? NTFY_ERRORS[req.query.ntfy] ?? null : null,
         timezoneLabel: serverTimeZone()
     });
 });
@@ -62,6 +64,43 @@ router.post('/settings/scroll-nav', (req: Request, res: Response) => {
 
 router.post('/settings/notification-target', (req: Request, res: Response) => {
     db.setUserNotificationTarget(req.user!.id, db.parseNotificationTarget(req.body.notification_target) ?? 'new');
+    res.redirect('/settings');
+});
+
+// The account's ntfy topic (utils/ntfy.ts): saved with the address the app
+// is used from, which a tap on its notifications opens. An empty URL turns
+// it off; an empty token keeps the saved one.
+const NTFY_ERRORS: Record<string, string> = {
+    invalid: 'Not an ntfy topic URL - like https://ntfy.sh/your-topic',
+    private: 'Only public addresses - a local ntfy server can be set by an admin'
+};
+
+router.post('/settings/ntfy', async (req: Request, res: Response) => {
+    const raw = typeof req.body.ntfy_url === 'string' ? req.body.ntfy_url.trim() : '';
+    if (!raw) {
+        db.setUserNtfy(req.user!.id, null);
+        res.redirect('/settings');
+        return;
+    }
+    const topic = parseNtfyUrl(raw);
+    if (!topic) {
+        res.redirect('/settings?ntfy=invalid');
+        return;
+    }
+    const url = `${topic.base}${topic.topic}`;
+    if (!await isAllowedNtfyUrl(url, req.user!.is_admin || !db.isMultiUser())) {
+        res.redirect('/settings?ntfy=private');
+        return;
+    }
+    const token = typeof req.body.ntfy_token === 'string' && req.body.ntfy_token.trim()
+        ? req.body.ntfy_token.trim()
+        : req.user!.ntfy?.token ?? null;
+    db.setUserNtfy(req.user!.id, { url, token, origin: req.get('origin') || `${req.protocol}://${req.get('host')}` });
+    res.redirect('/settings');
+});
+
+router.post('/settings/notify-combine', (req: Request, res: Response) => {
+    db.setUserNotifyCombine(req.user!.id, req.body.notify_combine !== 'each');
     res.redirect('/settings');
 });
 

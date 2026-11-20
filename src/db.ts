@@ -104,7 +104,16 @@ function initDb(): void {
             -- weekdays ("1,3,5", empty = never) and a time of day, in the
             -- server's time zone.
             notify_days TEXT NOT NULL DEFAULT '1,2,3,4,5,6,7',
-            notify_time TEXT NOT NULL DEFAULT '08:00'
+            notify_time TEXT NOT NULL DEFAULT '08:00',
+            -- ntfy topic URL notifications also go to (utils/ntfy.ts; NULL =
+            -- none), its optional access token, and the address the app was
+            -- used from when it was set - what a tap on one opens.
+            ntfy_url TEXT DEFAULT NULL,
+            ntfy_token TEXT DEFAULT NULL,
+            ntfy_origin TEXT DEFAULT NULL,
+            -- Several comics new in the same check: one notification for
+            -- all of them (1) or one each (0).
+            notify_combine INTEGER NOT NULL DEFAULT 1
         );
 
         CREATE TABLE IF NOT EXISTS sessions (
@@ -204,6 +213,16 @@ export interface User {
     notification_target: NotificationTarget;
     /** Default new-page check schedule; comics may have their own. */
     notify_schedule: Schedule;
+    /** ntfy topic new-page notifications also go to; null for none. */
+    ntfy: NtfySettings | null;
+    /** Several comics new at once: one notification for all of them. */
+    notify_combine: boolean;
+}
+
+export interface NtfySettings {
+    url: string;
+    token: string | null;
+    origin: string;
 }
 
 export type NotificationTarget = 'resume' | 'latest' | 'new';
@@ -221,6 +240,10 @@ interface UserRow {
     notification_target: string | null;
     notify_days: string;
     notify_time: string;
+    ntfy_url: string | null;
+    ntfy_token: string | null;
+    ntfy_origin: string | null;
+    notify_combine: number;
 }
 
 function mapUserRow(row: UserRow): User {
@@ -231,8 +254,19 @@ function mapUserRow(row: UserRow): User {
         is_admin: !!row.is_admin,
         has_seen_intro: !!row.has_seen_intro,
         notification_target: parseNotificationTarget(row.notification_target) ?? 'new',
-        notify_schedule: { days: parseDays(row.notify_days), time: parseTime(row.notify_time) ?? DEFAULT_NOTIFY_TIME }
+        notify_schedule: { days: parseDays(row.notify_days), time: parseTime(row.notify_time) ?? DEFAULT_NOTIFY_TIME },
+        ntfy: row.ntfy_url && row.ntfy_origin ? { url: row.ntfy_url, token: row.ntfy_token, origin: row.ntfy_origin } : null,
+        notify_combine: row.notify_combine !== 0
     };
+}
+
+export function setUserNotifyCombine(id: number, combine: boolean): void {
+    db.prepare(`UPDATE users SET notify_combine = ? WHERE id = ?`).run(combine ? 1 : 0, id);
+}
+
+export function setUserNtfy(id: number, ntfy: NtfySettings | null): void {
+    db.prepare(`UPDATE users SET ntfy_url = ?, ntfy_token = ?, ntfy_origin = ? WHERE id = ?`)
+        .run(ntfy?.url ?? null, ntfy?.token ?? null, ntfy?.origin ?? null, id);
 }
 
 export const DEFAULT_NOTIFY_TIME = '08:00';
@@ -994,7 +1028,7 @@ export function getPushSubscriptionsForUser(userId: number): PushSubscriptionRow
 
 // Every (account, comic) a scheduled new-page check could be due for: the
 // account hasn't muted the comic AND has a device with notifications turned
-// on, and the comic can be crawled. With nobody opted in, the checker never
+// on or an ntfy topic, and the comic can be crawled. With nobody opted in, the checker never
 // contacts any comic site.
 export interface ScheduledCheck {
     user_id: number;
@@ -1016,7 +1050,8 @@ export function getScheduledChecks(): ScheduledCheck[] {
         JOIN users ON users.id = comic_subscriptions.user_id
         WHERE comic_subscriptions.notify_new_pages = 1
           AND comics.selector_image IS NOT NULL AND comics.selector_latest IS NOT NULL
-          AND EXISTS (SELECT 1 FROM push_subscriptions WHERE push_subscriptions.user_id = comic_subscriptions.user_id)
+          AND (users.ntfy_url IS NOT NULL
+               OR EXISTS (SELECT 1 FROM push_subscriptions WHERE push_subscriptions.user_id = comic_subscriptions.user_id))
     `).all() as (ComicRow & {
         latest_signature: string | null; latest_checked_at: number | null;
         sub_user_id: number; sub_notify_days: string | null; sub_notify_time: string | null;
@@ -1054,6 +1089,14 @@ export function getNewPagesAfter(userId: number, comicId: number): string | null
         SELECT new_after_signature FROM comic_subscriptions WHERE user_id = ? AND comic_id = ?
     `).get(userId, comicId) as { new_after_signature: string | null } | undefined;
     return row?.new_after_signature ?? null;
+}
+
+// The comics this account has new pages in that it hasn't opened since -
+// the home page's "New" badges.
+export function getComicIdsWithNewPages(userId: number): Set<number> {
+    return new Set((db.prepare(`
+        SELECT comic_id FROM comic_subscriptions WHERE user_id = ? AND new_after_signature IS NOT NULL
+    `).all(userId) as { comic_id: number }[]).map(r => r.comic_id));
 }
 
 export function clearNewPagesAfter(userId: number, comicId: number): void {

@@ -127,7 +127,17 @@
   ignored pages (and fetching that page once if it isn't stored); without
   one (a homepage signature) it falls back to the newest page. Both jumps
   are previews. No notification action buttons (iOS can't show
-  them). Devices opt in on `/settings` (`public/js/notifications.js`,
+  them). Comics new for an account in the same tick are notified together:
+  one notification each, or - with `users.notify_combine` (the default)
+  and more than one - a single one ("QC and PTC have new pages") whose
+  tap opens the comic list; there, every comic with
+  `new_after_signature` set shows "New ›" (`/reader/:id/open/notification`).
+  Every notification also goes to the account's ntfy topic if it
+  set one (`users.ntfy_url`/`ntfy_token`, `utils/ntfy.ts`, published as
+  JSON, tap target from `ntfy_origin` - the address the app was used from
+  when it was set) - for phones without Google's or Apple's push; checks
+  run for an account with either a device or a topic. Devices opt in on
+  `/settings` (`public/js/notifications.js`,
   `routes/push.ts`); subscriptions answered 404/410 are pruned. The VAPID
   subject is the origin the device subscribed from. Testing: Playwright's
   Chromium can't subscribe (no push service) - insert a mock https

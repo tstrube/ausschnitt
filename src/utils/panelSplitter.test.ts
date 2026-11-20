@@ -822,6 +822,29 @@ test('a speech bubble shared half and half across a gutter shows whole in both p
     assert.ok(boxes[0].paint && boxes[1].paint, 'both panels are painted beside the bubble');
 });
 
+test('a light strip near a panel\'s edge with a speech bubble across it is no gutter', () => {
+    // Black-framed page, white gutters, four panels. In the bottom-right
+    // one a door frame - white, edged dark on both sides like a framed
+    // gutter - runs down its full height 40px from its right edge, a bubble
+    // overlapping its top. Cut there, the door would be a sliver of a panel.
+    const width = 400, height = 580;
+    const data = makeFramedPage(width, height, [
+        { x0: 0, y0: 20, x1: 197, y1: 280, v: 120 },
+        { x0: 203, y0: 20, x1: 400, y1: 280, v: 140 },
+        { x0: 0, y0: 286, x1: 197, y1: 560, v: 160 },
+        { x0: 203, y0: 286, x1: 400, y1: 560, v: 180 }
+    ]);
+    fillRGB(data, width, 346, 288, 348, 558, [0, 0, 0]);
+    fillRGB(data, width, 348, 288, 358, 558, [255, 255, 255]);
+    fillRGB(data, width, 358, 288, 360, 558, [0, 0, 0]);
+    fillRGB(data, width, 290, 300, 390, 350, [0, 0, 0]);
+    fillRGB(data, width, 292, 302, 388, 348, [255, 255, 255]);
+    for (let x = 298; x < 382; x += 7) fillRGB(data, width, x, 318, x + 3, 328, [0, 0, 0]);
+
+    const boxes = detectPanelBoxes(data, width, height, 3);
+    assert.equal(boxes.length, 4, JSON.stringify(boxes.map(b => [b.left, b.top, b.width, b.height])));
+});
+
 test('lines of text on a white panel stay one panel', () => {
     // White page: gray panels above and below, between them a frameless
     // text panel - lines of "lettering" (thin strokes) with white gaps

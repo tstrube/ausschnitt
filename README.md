@@ -15,7 +15,7 @@ Teach Ausschnitt the image and navigation elements for a comic once, then it can
 - Per-account reading positions, bookmarks, ignored pages, and settings
 - Optional multiple accounts with password-protected profiles
 - Shared comic downloads between accounts on the same instance
-- Optional new-page notifications via Web Push
+- Optional new-page notifications via Web Push, or via [ntfy](https://ntfy.sh) without Google's or Apple's servers
 - Installable PWA with an offline fallback page
 - SQLite storage and local image files; no external database required
 - A built-in manual (the ❓ button), shown automatically on each account's first login

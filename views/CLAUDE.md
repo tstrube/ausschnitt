@@ -15,10 +15,11 @@ Styling rules (header chrome, icons, buttons, theme) are in
 - **Global settings page**: `GET /settings` (`settings.pug`), the navbar's
   ⚙ on every page except the readers (whose ⚙ is that comic's settings).
   Theme, default reading mode and scroll bottom bar, new-page
-  notifications (device toggle, check schedule, notification target),
-  disk usage and free space, and Clear all (single-user only). Each
-  `POST /settings/*` (and `/clear-all`) redirects back to `/settings`. The
-  comic list holds only comics.
+  notifications (device toggle, ntfy topic, check schedule, combining,
+  notification target), disk usage and free space, and Clear all
+  (single-user only). Each `POST /settings/*` (and `/clear-all`) redirects
+  back to `/settings`. The comic list holds only comics; one with unopened
+  new pages gets a "New ›" button that opens them like their notification.
 - **Settings layout**: phone-style rows (`public/css/settings.css`) on
   both settings pages - grouped `.list-group`s under small uppercase
   headings, `.settings-row` with the label left and control right, every

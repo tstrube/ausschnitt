@@ -3,6 +3,7 @@ import * as db from './db';
 import { Comic } from './types';
 import { getComicImageSrc, isComicHomeUrl, resolveNavUrl } from './utils/fetch';
 import { lastOccurrence, serverTimeZone } from './utils/schedule';
+import { isAllowedNtfyUrl, parseNtfyUrl, sendNtfy } from './utils/ntfy';
 
 // Background check for new pages, plus the Web Push delivery that tells
 // subscribed devices about them (public/sw.js shows the notification).
@@ -60,9 +61,10 @@ export interface PushPayload {
     tag?: string;
 }
 
-// Sends to every device this user enabled notifications on. Subscriptions
-// the push service reports as gone (the user revoked permission, cleared
-// site data, uninstalled the app) are dropped.
+// Sends to every device this user enabled notifications on, and to their
+// ntfy topic if they set one. Subscriptions the push service reports as
+// gone (the user revoked permission, cleared site data, uninstalled the
+// app) are dropped.
 async function sendToUser(userId: number, payload: PushPayload): Promise<{ sent: number; failed: number }> {
     const { publicKey, privateKey } = vapidKeys();
     let sent = 0;
@@ -90,7 +92,31 @@ async function sendToUser(userId: number, payload: PushPayload): Promise<{ sent:
             }
         }
     }
+    if (await sendToNtfy(userId, payload)) sent++;
+    else if (db.getUserById(userId)?.ntfy) failed++;
     return { sent, failed };
+}
+
+// Whether it went out - false without an ntfy topic too.
+async function sendToNtfy(userId: number, payload: PushPayload): Promise<boolean> {
+    const user = db.getUserById(userId);
+    const topic = user?.ntfy && parseNtfyUrl(user.ntfy.url);
+    if (!user?.ntfy || !topic) return false;
+    try {
+        if (!await isAllowedNtfyUrl(user.ntfy.url, user.is_admin || !db.isMultiUser())) {
+            console.error(`ntfy for user ${userId}: ${user.ntfy.url} is not a public address`);
+            return false;
+        }
+        // Same target as tapping a Web Push notification (public/sw.js).
+        const click = payload.comicId
+            ? `${user.ntfy.origin}/reader/${payload.comicId}/open/notification`
+            : `${user.ntfy.origin}/`;
+        await sendNtfy(topic, user.ntfy.token, { title: payload.title, message: payload.body, click });
+        return true;
+    } catch (err) {
+        console.error(`ntfy for user ${userId} failed:`, err);
+        return false;
+    }
 }
 
 export function sendTestNotification(userId: number): Promise<{ sent: number; failed: number }> {
@@ -139,20 +165,39 @@ async function currentSignature(comic: db.ScheduledCheck['comic'], now: number):
     }
 }
 
-async function runCheck(check: db.ScheduledCheck, now: number): Promise<void> {
+// Whether this check found a new page for its account (noted for the home
+// page's "New" badge - db.markNewPagesAfter); notifying is up to the caller.
+async function runCheck(check: db.ScheduledCheck, now: number): Promise<boolean> {
     const result = await currentSignature(check.comic, now);
     db.setScheduledCheck(check.user_id, check.comic.id, now, result?.signature ?? null);
-    if (!result || !check.notified_signature || check.notified_signature === result.signature) return;
-    if (!isComicHomeUrl(result.latestUrl, check.comic.url) && db.getPageByUrl(check.comic.id, result.latestUrl)) return;
+    if (!result || !check.notified_signature || check.notified_signature === result.signature) return false;
+    if (!isComicHomeUrl(result.latestUrl, check.comic.url) && db.getPageByUrl(check.comic.id, result.latestUrl)) return false;
 
     console.log(`New page detected for "${check.comic.title}": ${result.latestUrl}`);
     db.markNewPagesAfter(check.user_id, check.comic.id, check.notified_signature);
-    await sendToUser(check.user_id, {
-        title: check.comic.title,
-        body: 'New page available',
-        comicId: check.comic.id,
-        tag: `comic-${check.comic.id}`
-    });
+    return true;
+}
+
+// The notifications for one account's new comics from one tick: one per
+// comic, or - when the account combines them and there are several - one
+// for all, whose tap opens the home page with its "New" badges.
+async function notifyNewComics(userId: number, comics: Comic[]): Promise<void> {
+    const user = db.getUserById(userId);
+    if (!user) return;
+    if (comics.length > 1 && user.notify_combine) {
+        await sendToUser(userId, { title: 'Ausschnitt', body: describeNewComics(comics.map(c => c.title)), tag: 'new-pages' });
+        return;
+    }
+    for (const comic of comics) {
+        await sendToUser(userId, { title: comic.title, body: 'New page available', comicId: comic.id, tag: `comic-${comic.id}` });
+    }
+}
+
+// "QC and PTC have new pages", "QC, PTC and 2 more have new pages".
+export function describeNewComics(titles: string[]): string {
+    if (titles.length <= 1) return `${titles[0] ?? 'A comic'} has new pages`;
+    if (titles.length === 2) return `${titles[0]} and ${titles[1]} have new pages`;
+    return `${titles[0]}, ${titles[1]} and ${titles.length - 2} more have new pages`;
 }
 
 let running = false;
@@ -167,6 +212,8 @@ async function tick(): Promise<void> {
         // hurry. Comics are shared, so the same comic object serves every
         // account due for it (currentSignature updates it in place).
         const comics = new Map<number, db.ScheduledCheck['comic']>();
+        // New comics per account, notified together once every check ran.
+        const newComics = new Map<number, Comic[]>();
         for (const check of db.getScheduledChecks()) {
             check.comic = comics.get(check.comic.id) ?? check.comic;
             comics.set(check.comic.id, check.comic);
@@ -182,8 +229,11 @@ async function tick(): Promise<void> {
                 db.setScheduledCheck(check.user_id, check.comic.id, now, null);
                 continue;
             }
-            await runCheck(check, now);
+            if (await runCheck(check, now)) {
+                newComics.set(check.user_id, [...newComics.get(check.user_id) ?? [], check.comic]);
+            }
         }
+        for (const [userId, comics] of newComics) await notifyNewComics(userId, comics);
     } finally {
         running = false;
     }

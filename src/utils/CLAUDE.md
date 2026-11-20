@@ -49,8 +49,10 @@ these are the invariants a change must keep:
 - **Speech bubbles** (`findBubbles`: a closed light area holding many
   small enclosed letters) may cross a gutter: a band clean apart from a
   bubble still counts when at most half of it lies under bubbles
-  (`bubbleShare`) and drawn frame lines run along both sides
-  (`isFramed`). The cell holding most of the bubble grows to take it in
+  (`bubbleShare`), drawn frame lines run along both sides (`isFramed`),
+  and it leaves room for a full panel on both sides (15% of the page,
+  `CROSSED_MIN_PART_FRACTION` - a light strip in the art a bubble
+  overlaps, like a door frame, often leaves only a sliver). The cell holding most of the bubble grows to take it in
   whole - so does every cell holding at least 40% of it, so a bubble
   shared across a gutter shows whole in both panels - and the rest of the
   added strip is painted in the page's measured gutter color, the outline

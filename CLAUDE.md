@@ -55,6 +55,11 @@ notifications), `src/utils/CLAUDE.md` (panel splitting),
   check on every hop - a plain `fetch()` would follow a redirect to an
   internal address). Never weaken either layer without equivalent
   protection.
+- **ntfy topics** (`utils/ntfy.ts`): the server POSTs to an address an
+  account entered. Only an admin (in single-user mode, the one account)
+  may use a private-network address - a self-hosted ntfy server is
+  usually one; everyone else gets `proxySafety.ts`'s check, on saving and
+  on every send, and redirects are never followed.
 
 ## Architecture
 

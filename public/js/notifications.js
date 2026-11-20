@@ -5,12 +5,25 @@
     const testBtn = document.getElementById('notifyTest');
     const status = document.getElementById('notifyStatus');
     if (!toggleBtn) return;
+    // An ntfy topic is set (settings.pug): "Send test" works for it even
+    // where this browser can't do push itself.
+    const ntfyOn = testBtn.dataset.ntfy === 'on';
 
     function unsupported(message) {
         toggleBtn.hidden = true;
-        testBtn.hidden = true;
+        testBtn.hidden = !ntfyOn;
         status.textContent = message;
     }
+
+    // Tests every way this account is notified (Web Push and ntfy).
+    testBtn.addEventListener('click', async () => {
+        try {
+            const result = await postJson('/push/test');
+            if (!result.sent) showToast('No notification could be sent.', { type: 'error' });
+        } catch {
+            showToast("Couldn't send a test notification.", { type: 'error' });
+        }
+    });
 
     const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent)
         || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -55,7 +68,7 @@
     function render() {
         toggleBtn.hidden = false;
         toggleBtn.textContent = subscription ? 'Turn off' : 'Turn on';
-        testBtn.hidden = !subscription;
+        testBtn.hidden = !subscription && !ntfyOn;
         status.textContent = subscription ? 'On for this device'
             : Notification.permission === 'denied' ? 'Blocked in this browser’s settings'
             : 'Off for this device';
@@ -109,15 +122,6 @@
         }
         toggleBtn.disabled = false;
         render();
-    });
-
-    testBtn.addEventListener('click', async () => {
-        try {
-            const result = await postJson('/push/test');
-            if (!result.sent) showToast('No notification could be sent to this device.', { type: 'error' });
-        } catch {
-            showToast("Couldn't send a test notification.", { type: 'error' });
-        }
     });
 
     init().catch(err => {

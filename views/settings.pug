@@ -43,14 +43,31 @@ block content
                 //- the page is shown, and the rows below mustn't move then.
                 span#notifyStatus.settings-hint &nbsp;
             .d-flex.flex-wrap.justify-content-end.gap-1.settings-value
-                button#notifyTest.btn.btn-sm.btn-outline-secondary(type='button' hidden) Send test
+                button#notifyTest.btn.btn-sm.btn-outline-secondary(type='button' hidden data-ntfy=user.ntfy ? 'on' : false) Send test
                 button#notifyToggle.btn.btn-sm.btn-outline-secondary(type='button' hidden)
+        //- An alternative to the browser's own (Google/Apple/Mozilla) push:
+        //- the ntfy app, with ntfy.sh or a self-hosted server.
+        form.list-group-item.settings-row.settings-row-stacked(method='POST' action='/settings/ntfy')
+            label.settings-label(for='ntfy-url') ntfy - without Google or Apple
+                span.settings-hint #{user.ntfy ? 'On' : 'Off'} · notifications in the ntfy app, from ntfy.sh or your own server. Use a long, random topic name - anyone who knows it can read it.
+            if ntfyError
+                span.text-danger.small= ntfyError
+            .d-flex.flex-wrap.gap-2
+                input#ntfy-url.form-control.form-control-sm.flex-grow-1(type='url' name='ntfy_url' value=user.ntfy ? user.ntfy.url : '' placeholder='https://ntfy.sh/your-long-random-topic' autocomplete='off' style='min-width: 12rem; width: auto')
+                input.form-control.form-control-sm.flex-grow-1(type='password' name='ntfy_token' placeholder=user.ntfy && user.ntfy.token ? 'Access token saved' : 'Access token (optional)' autocomplete='new-password' aria-label='Access token' style='min-width: 8rem; width: auto')
+                button.btn.btn-sm.btn-outline-secondary(type='submit') Save
         form.list-group-item.settings-row.settings-row-stacked(method='POST' action='/settings/notification-schedule' onchange='this.submit()')
             span.settings-label Check for new pages
                 span.settings-hint #{scheduleText} · server time (#{timezoneLabel}) · each comic can have its own
             +schedulePicker(user.notify_schedule, 'default')
             noscript
                 button.btn.btn-sm.btn-primary(type='submit') Save
+        form.list-group-item.settings-row(method='POST' action='/settings/notify-combine')
+            label.settings-label(for='notify-combine') Several comics at once
+                span.settings-hint New in the same check · a combined one opens your comic list, each marked "New"
+            select#notify-combine.form-select.form-select-sm(name='notify_combine' onchange='this.form.submit()')
+                option(value='combine' selected=user.notify_combine) Combine into one
+                option(value='each' selected=!user.notify_combine) One per comic
         form.list-group-item.settings-row(method='POST' action='/settings/notification-target')
             label.settings-label(for='notification-target') Tapping a notification opens
             select#notification-target.form-select.form-select-sm(name='notification_target' onchange='this.form.submit()')
