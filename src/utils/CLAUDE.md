@@ -47,7 +47,8 @@ these are the invariants a change must keep:
   joining) beside that edge; the rest is the frameless panel's
   background.
 - **Speech bubbles** (`findBubbles`: a closed light area holding many
-  small enclosed letters) may cross a gutter: a band clean apart from a
+  small enclosed letters - or one the image edge cuts off, meeting one
+  edge along at most 75% of its side; the margin meets several) may cross a gutter: a band clean apart from a
   bubble still counts when at most half of it lies under bubbles
   (`bubbleShare`), drawn frame lines run along both sides (`isFramed`),
   and it leaves room for a full panel on both sides (15% of the page,

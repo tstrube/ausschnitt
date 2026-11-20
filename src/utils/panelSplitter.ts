@@ -991,11 +991,13 @@ function trimBlendLines(r: Raster, cell: Box, gutter: RGB): Box {
 // lettering - at least BUBBLE_MIN_LETTERS enclosed darker islands, each at
 // most BUBBLE_MAX_LETTER and together at least BUBBLE_MIN_LETTERING of
 // its area - at least BUBBLE_MIN_WIDTH_PX x BUBBLE_MIN_HEIGHT_PX, at most
-// BUBBLE_MAX_AREA of the page and never touching the image edge (a
-// gutter or an open background spreads further). Its shape is the inside
+// BUBBLE_MAX_AREA of the page, and closed - except where the image edge
+// cuts it off (one edge, along part of its side; a gutter or an open
+// background spreads further). Its shape is the inside
 // with its lettering; with its outline (BUBBLE_MARGIN_PX around the shape)
 // it may cross a gutter without blocking it (isCleanLine).
 const BUBBLE_MIN_LIGHTNESS = 200;
+const BUBBLE_MAX_EDGE_SHARE = 0.75;
 const BUBBLE_TOLERANCE = 36;
 const BUBBLE_MIN_WIDTH_PX = 40;
 const BUBBLE_MIN_HEIGHT_PX = 20;
@@ -1033,7 +1035,8 @@ function findBubbles(r: Raster): void {
         const color = pixelAt(r, seed);
         let head = 0;
         let tail = 0;
-        let closed = true;
+        // Pixels on each image edge: left, top, right, bottom.
+        const onEdge = [0, 0, 0, 0];
         let left = width, top = height, right = -1, bottom = -1;
         visited[seed] = 1;
         queue[tail++] = seed;
@@ -1041,7 +1044,10 @@ function findBubbles(r: Raster): void {
             const p = queue[head++];
             const x = p % width;
             const y = (p / width) | 0;
-            if (x === 0 || y === 0 || x === width - 1 || y === height - 1) closed = false;
+            if (x === 0) onEdge[0]++;
+            if (y === 0) onEdge[1]++;
+            if (x === width - 1) onEdge[2]++;
+            if (y === height - 1) onEdge[3]++;
             if (x < left) left = x;
             if (x > right) right = x;
             if (y < top) top = y;
@@ -1055,9 +1061,16 @@ function findBubbles(r: Raster): void {
             }
         }
         const area = tail;
-        if (!closed || area > maxArea) continue;
+        if (area > maxArea) continue;
         const w = right - left + 1;
         const h = bottom - top + 1;
+        // Cut off by the image edge, a bubble meets one edge along part of
+        // its side (BUBBLE_MAX_EDGE_SHARE); the page's margin, or a
+        // background running out of the picture, meets several, or one
+        // along all of it.
+        const edges = onEdge.flatMap((n, i) => n ? [i] : []);
+        if (edges.length > 1) continue;
+        if (edges.length === 1 && onEdge[edges[0]] > (edges[0] % 2 ? w : h) * BUBBLE_MAX_EDGE_SHARE) continue;
         if (w < BUBBLE_MIN_WIDTH_PX || h < BUBBLE_MIN_HEIGHT_PX) continue;
 
         // The shape: the area plus what it encloses - everything in its box

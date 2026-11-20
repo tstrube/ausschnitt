@@ -845,6 +845,29 @@ test('a light strip near a panel\'s edge with a speech bubble across it is no gu
     assert.equal(boxes.length, 4, JSON.stringify(boxes.map(b => [b.left, b.top, b.width, b.height])));
 });
 
+test('a speech bubble cut off by the image edge still counts as one, across a gutter', () => {
+    // Black-framed page, white gutters, panels flush with the image's
+    // sides. The bottom-right panel's bubble runs out of the picture on the
+    // right (open there along part of its side) and up across the row
+    // gutter into the panel above.
+    const width = 400, height = 580;
+    const data = makeFramedPage(width, height, [
+        { x0: 0, y0: 20, x1: 197, y1: 280, v: 120 },
+        { x0: 203, y0: 20, x1: 400, y1: 280, v: 140 },
+        { x0: 0, y0: 286, x1: 197, y1: 560, v: 160 },
+        { x0: 203, y0: 286, x1: 400, y1: 560, v: 180 }
+    ]);
+    fillRGB(data, width, 290, 262, 400, 342, [0, 0, 0]);
+    fillRGB(data, width, 292, 264, 400, 340, [255, 255, 255]);
+    fillRGB(data, width, 397, 264, 400, 282, [0, 0, 0]);
+    fillRGB(data, width, 397, 322, 400, 340, [0, 0, 0]);
+    for (let x = 300; x < 390; x += 7) fillRGB(data, width, x, 296, x + 3, 306, [0, 0, 0]);
+
+    const boxes = detectPanelBoxes(data, width, height, 3);
+    assert.equal(boxes.length, 4, JSON.stringify(boxes.map(b => [b.left, b.top, b.width, b.height])));
+    assert.ok(boxes[3].top <= 262, JSON.stringify([boxes[3].left, boxes[3].top]));
+});
+
 test('lines of text on a white panel stay one panel', () => {
     // White page: gray panels above and below, between them a frameless
     // text panel - lines of "lettering" (thin strokes) with white gaps
