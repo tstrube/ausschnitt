@@ -45,7 +45,9 @@ these are the invariants a change must keep:
   such gaps never count as cuts there. A band with an edge on one side is
   a gutter of the page's usual width (the median of the gutters left after
   joining) beside that edge; the rest is the frameless panel's
-  background.
+  background. A band under half that usual width isn't cut either, edges
+  or not (`THIN_GUTTER_SHARE`) - a 2px door frame and a 2px gutter look
+  the same, and the safe direction wins.
 - **Speech bubbles** (`findBubbles`: a closed light area holding many
   small enclosed letters - or one the image edge cuts off, meeting one
   edge along at most 75% of its side; the margin meets several) may cross a gutter: a band clean apart from a
@@ -60,7 +62,10 @@ these are the invariants a change must keep:
   redrawn toward it (`withBubbles`, `PanelCrop.paint`); painted panels are
   saved as PNG.
 - **No light lines in the dark reader**: every panel side along a gutter
-  loses 1px (`insetFromGutters`), plus up to 2 antialiased lines blended
+  loses 1px (`insetFromGutters`), then the near-white lines the gutter
+  runs on with beyond its clean core, when the panel's own edge follows
+  within 6 lines (`trimGutterLines` - white running on further is a
+  frameless panel's background and stays), plus up to 2 antialiased lines blended
   between gutter and frame (`trimBlendLines`, a line lighter than the next
   along 75% of its length). Where the inner gutters'
   color continues as a frame around the panel area, panels on that edge

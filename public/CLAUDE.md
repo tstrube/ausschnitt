@@ -30,13 +30,13 @@
   page re-reports and restores it (`restorePendingPosition`). The note is
   cleared when the page becomes visible again, never in the hide handler
   (visibilitychange and pagehide both fire on reload).
-- **Light/dark theme**: `#themeSelect` (System/Light/Dark) on `/settings`,
-  `js/theme.js` and Bootstrap 5.3's `data-bs-theme` - per device
-  (`localStorage` key `theme`). An inline script at the top of
-  `views/layout.pug`'s `<head>` applies it before any paint; "System"
-  follows `prefers-color-scheme` live. Reader and Select Elements content
-  areas follow the theme (dark mode reader background is pure black);
-  header and control bars are always dark.
+- **Dark only**: `views/layout.pug` sets Bootstrap 5.3's
+  `data-bs-theme="dark"` and `color-scheme: dark`; `css/dark.css` makes the
+  page background pure black (Bootstrap's dark body gray reads as too
+  bright around comic panels). Header and control bars, list rows and form
+  controls keep Bootstrap's dark grays. No light theme and no switch -
+  styles needn't consider one (`offline.html` and the manifest's
+  `background_color` are black too).
 - **Consistent header chrome**: every header/control bar (navbar, reader
   top bar and bottom controls, Select Elements bars) uses `#212529`
   (Bootstrap's `bg-dark`/`theme-color`) and the same icon for the same
@@ -57,10 +57,9 @@
   `env(safe-area-inset-top)` (6px minimum); each page's top bar reaches up
   behind it with a top border of that inset in the same color. A new kind
   of top bar gets the same border.
-- **Buttons** (`css/buttons.css`, global): theme-scoped CSS-variable
-  overrides fix the low-contrast Bootstrap variants
-  (`.btn-outline-warning` in light mode, `.btn-outline-secondary` in dark
-  mode) - use the same pattern for any other contrast fix. Touch-only
+- **Buttons** (`css/buttons.css`, global): CSS-variable overrides fix
+  low-contrast Bootstrap variants on the dark page (`.btn-outline-secondary`)
+  - use the same pattern for any other contrast fix. Touch-only
   devices (`@media (hover: none)`) show hover as the normal state. Every
   `.btn` and header/control bar has `touch-action: manipulation`: no
   double-tap zoom (Ignore then its "OK?" confirm), pinch-zoom still works

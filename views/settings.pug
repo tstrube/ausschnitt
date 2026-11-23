@@ -10,16 +10,6 @@ block content
     //- Each row is its own form and saves on change - no Save button, like a
     //- phone's settings screen. Per-comic overrides live on each comic's own
     //- Settings page (⚙ in the reader).
-    .settings-group-title Appearance
-    .list-group
-        .list-group-item.settings-row
-            label.settings-label(for='themeSelect') Theme
-                span.settings-hint Only on this device
-            select#themeSelect.form-select.form-select-sm(aria-label='Theme')
-                option(value='system') System
-                option(value='light') Light
-                option(value='dark') Dark
-
     .settings-group-title Reading
     .list-group
         form.list-group-item.settings-row(method='POST' action='/settings/reading-mode')

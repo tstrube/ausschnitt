@@ -1,5 +1,6 @@
 doctype html
-html
+//- Dark only - Bootstrap's dark theme, on a black page (css/dark.css).
+html(data-bs-theme='dark')
     head
         title Ausschnitt
         meta(charset='UTF-8')
@@ -14,17 +15,9 @@ html
         meta(name='mobile-web-app-capable' content='yes')
         //- The page draws behind the status bar itself - see css/status-bar.css.
         meta(name='apple-mobile-web-app-status-bar-style' content='black-translucent')
-        //- Runs synchronously, before Bootstrap's CSS paints anything, so the
-        //- page never flashes the wrong theme on load.
-        script.
-            (function () {
-                var stored = localStorage.getItem('theme') || 'system';
-                var resolved = stored === 'system'
-                    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-                    : stored;
-                document.documentElement.setAttribute('data-bs-theme', resolved);
-            })();
+        meta(name='color-scheme' content='dark')
         link(rel='stylesheet' href='/vendor/bootstrap/bootstrap.min.css')
+        link(rel='stylesheet' href='/css/dark.css')
         link(rel='stylesheet' href='/css/toast.css')
         link(rel='stylesheet' href='/css/buttons.css')
         link(rel='stylesheet' href='/css/status-bar.css')
@@ -33,7 +26,6 @@ html
         //- Holds the iOS status bar's color - see css/status-bar.css.
         .status-bar-backdrop(aria-hidden='true')
         script(src='/js/toast.js')
-        script(src='/js/theme.js')
         script(src='/js/pwa.js')
         block body
             nav.navbar.navbar-dark.bg-dark.mb-4

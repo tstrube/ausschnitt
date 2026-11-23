@@ -1,22 +1,5 @@
-/* Bootstrap's own outline-warning yellow (#ffc107) reads at too low a
-   contrast against a light-mode page background - dark mode already looks
-   fine (same yellow against #212529), so only override light mode. Color
-   values are Bootstrap's own "warning-text-emphasis" shade, just applied
-   here instead of only to alerts/badges. */
-html[data-bs-theme="light"] .btn-outline-warning {
-    --bs-btn-color: #664d03;
-    --bs-btn-border-color: #664d03;
-    --bs-btn-hover-color: #fff;
-    --bs-btn-hover-bg: #664d03;
-    --bs-btn-hover-border-color: #664d03;
-    --bs-btn-active-color: #fff;
-    --bs-btn-active-bg: #664d03;
-    --bs-btn-active-border-color: #664d03;
-}
-
 /* Bootstrap's own outline-secondary gray (#6c757d) reads at too low a
-   contrast against a dark-mode page background - light mode already looks
-   fine, so only override dark mode. */
+   contrast against the dark page. */
 html[data-bs-theme="dark"] .btn-outline-secondary {
     --bs-btn-color: #ced4da;
     --bs-btn-border-color: #ced4da;
@@ -32,8 +15,8 @@ html[data-bs-theme="dark"] .btn-outline-secondary {
    :hover until something else is tapped - a button would keep its hover
    look after its panel closes. On touch-only devices, hover looks the same
    as the button's normal state (its pressed/active look is untouched). Selector
-   matches the theme-scoped overrides above in specificity and comes after
-   them, so it wins over their hover colors too. */
+   matches the override above in specificity and comes after it, so it wins
+   over its hover colors too. */
 @media (hover: none) {
     html[data-bs-theme] .btn {
         --bs-btn-hover-color: var(--bs-btn-color);

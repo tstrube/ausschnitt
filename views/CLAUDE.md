@@ -14,7 +14,7 @@ Styling rules (header chrome, icons, buttons, theme) are in
   except the two readers.
 - **Global settings page**: `GET /settings` (`settings.pug`), the navbar's
   ⚙ on every page except the readers (whose ⚙ is that comic's settings).
-  Theme, default reading mode and scroll bottom bar, new-page
+  Default reading mode and scroll bottom bar, new-page
   notifications (device toggle, ntfy topic, check schedule, combining,
   notification target), disk usage and free space, and Clear all
   (single-user only). Each `POST /settings/*` (and `/clear-all`) redirects

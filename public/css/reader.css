@@ -4,15 +4,6 @@ html, body {
     overscroll-behavior: none;
 }
 
-/* Theme-reactive otherwise (light mode keeps Bootstrap's normal light
-   background), but Bootstrap's own dark-mode body color (--bs-body-bg,
-   #212529 - the same gray as the header chrome) reads as too bright for
-   actually reading comic panels against in a dark room - force true black
-   specifically for dark mode here, without touching light mode. */
-html[data-bs-theme="dark"] body {
-    background: #000;
-}
-
 .reader-shell {
     display: flex;
     flex-direction: column;

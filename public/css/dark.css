@@ -1,0 +1,7 @@
+/* The app is dark only (data-bs-theme="dark" in layout.pug). The page itself
+   is pure black - Bootstrap's dark body color (#212529) is the header gray
+   and reads as too bright around comic panels in a dark room. Header and
+   control bars, list rows and form controls keep Bootstrap's dark grays. */
+body {
+    background-color: #000;
+}

@@ -868,6 +868,37 @@ test('a speech bubble cut off by the image edge still counts as one, across a gu
     assert.ok(boxes[3].top <= 262, JSON.stringify([boxes[3].left, boxes[3].top]));
 });
 
+test('near-white lines between a panel and its gutter are trimmed off, not left as a white strip', () => {
+    // White page, two panels side by side. Between the left panel and the
+    // clean gutter, four white lines with a stray gray pixel each - not
+    // clean enough to be gutter, still gutter to look at.
+    const width = 400, height = 300;
+    const buffer = Buffer.alloc(width * height * 3, 255);
+    fillRGB(buffer, width, 0, 20, 190, 280, [120, 160, 200]);
+    fillRGB(buffer, width, 206, 20, 400, 280, [200, 120, 120]);
+    for (let x = 190; x < 194; x++) fillRGB(buffer, width, x, 100 + (x - 190) * 20, x + 1, 101 + (x - 190) * 20, [200, 200, 200]);
+
+    const boxes = detectPanelBoxes(buffer, width, height, 3);
+    assert.equal(boxes.length, 2, JSON.stringify(boxes));
+    assert.equal(boxes[0].left + boxes[0].width, 190, JSON.stringify(boxes[0]));
+});
+
+test('a band much thinner than the page\'s gutters is no gutter, even with edges on both sides', () => {
+    // White page, 12px gutters. The top-right panel has a 2px white door
+    // frame running down its full height, dark on both sides.
+    const width = 400, height = 580;
+    const buffer = Buffer.alloc(width * height * 3, 255);
+    fillRGB(buffer, width, 0, 20, 194, 280, [120, 160, 200]);
+    fillRGB(buffer, width, 206, 20, 330, 280, [90, 60, 40]);
+    fillRGB(buffer, width, 332, 20, 400, 280, [90, 60, 40]);
+    fillRGB(buffer, width, 0, 292, 400, 560, [150, 200, 150]);
+
+    const boxes = detectPanelBoxes(buffer, width, height, 3);
+    assert.deepEqual(boxes.map(b => [b.left, b.top, b.width, b.height]), [
+        [0, 21, 193, 258], [207, 21, 193, 258], [0, 293, 400, 266]
+    ]);
+});
+
 test('lines of text on a white panel stay one panel', () => {
     // White page: gray panels above and below, between them a frameless
     // text panel - lines of "lettering" (thin strokes) with white gaps

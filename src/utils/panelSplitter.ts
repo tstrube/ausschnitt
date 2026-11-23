@@ -782,7 +782,10 @@ function alignTree(r: Raster, root: Node, colors: RGB[]): void {
 // frameless panel whose background is the gutter color makes it look too
 // wide: gutters on a page are about the same width, so it keeps the page's
 // usual width (the median) beside the edge, and the rest of the band is the
-// frameless panel's background.
+// frameless panel's background. A band less than THIN_GUTTER_SHARE of that
+// usual width is no gutter either - a light strip in the art, like a door
+// frame - and joined too.
+const THIN_GUTTER_SHARE = 0.5;
 
 // With `width` null, only the joins.
 function alignGutters(r: Raster, node: Node, colors: RGB[], width: number | null): void {
@@ -796,7 +799,8 @@ function alignGutters(r: Raster, node: Node, colors: RGB[], width: number | null
         const tolerance = gutterNoise(r, g, split.columns, node.box, colors);
         const beforeEdge = hasEdge(r, before.box, split.columns, g.from - 1, -1, colors, tolerance);
         const afterEdge = hasEdge(r, after.box, split.columns, g.to, 1, colors, tolerance);
-        if (!beforeEdge && !afterEdge && !before.split && !after.split) {
+        const thin = width !== null && g.to - g.from < width * THIN_GUTTER_SHARE;
+        if ((thin || (!beforeEdge && !afterEdge)) && !before.split && !after.split) {
             const b = before.box;
             const a = after.box;
             const left = Math.min(b.left, a.left);
@@ -831,7 +835,7 @@ function alignGutters(r: Raster, node: Node, colors: RGB[], width: number | null
 // column cut, else y, EDGE_LINES inward in direction `dir`, past
 // antialiasing) is mostly content.
 const PANEL_EDGE_FRACTION = 0.5;
-const EDGE_LINES = 3;
+const EDGE_LINES = 6;
 
 function hasEdge(r: Raster, box: Box, columns: boolean, pos: number, dir: number, colors: RGB[], tolerance: number): boolean {
     const from = columns ? box.top : box.left;
@@ -940,6 +944,52 @@ function trimOuterFrame(r: Raster, cell: Box, area: Box, colors: RGB[], max: num
 // blended and partly art, that shows as a thin light line in a dark
 // reader. Losing a pixel of art there is invisible.
 const GUTTER_INSET_PX = 1;
+
+// A cut runs along a gutter's clean lines, but the gutter often goes on a
+// few lines into the cell - near-white lines a stray pixel kept from being
+// clean - which would show as a white strip along the panel. Each side
+// bordering a gutter (not the image edge) loses its edge lines in the
+// page's measured gutter color - GUTTER_LINE_FRACTION of their pixels within
+// GUTTER_LINE_TOLERANCE of it, or on average that close (white with a faint
+// antialiased gray stretch); a faintly tinted panel background is neither -
+// when the panel's own edge follows within MAX_GUTTER_LINES. White running
+// on further is a frameless panel's own background (alignGutters) and
+// stays.
+const MAX_GUTTER_LINES = 6;
+const GUTTER_LINE_TOLERANCE = 10;
+const GUTTER_LINE_FRACTION = 0.9;
+
+function trimGutterLines(r: Raster, cell: Box, gutter: RGB): Box {
+    let left = cell.left;
+    let top = cell.top;
+    let right = cell.left + cell.width;
+    let bottom = cell.top + cell.height;
+    const isGutter = (column: boolean, pos: number) => {
+        const from = column ? top : left;
+        const to = column ? bottom : right;
+        let sum = 0;
+        let close = 0;
+        for (let i = from; i < to; i++) {
+            const distance = distanceAt(r, column ? i * r.width + pos : pos * r.width + i, gutter);
+            sum += distance;
+            if (distance <= GUTTER_LINE_TOLERANCE) close++;
+        }
+        const n = to - from;
+        return n > 0 && (close >= n * GUTTER_LINE_FRACTION || sum / n <= GUTTER_LINE_TOLERANCE);
+    };
+    // How many gutter lines a side starts with, from `edge` in direction
+    // `dir` - 0 when they run on past MAX_GUTTER_LINES.
+    const leading = (column: boolean, edge: number, dir: number) => {
+        let k = 0;
+        while (k <= MAX_GUTTER_LINES && isGutter(column, edge + dir * k)) k++;
+        return k > MAX_GUTTER_LINES ? 0 : k;
+    };
+    if (left > 0 && right - left > 2 * MAX_GUTTER_LINES) left += leading(true, left, 1);
+    if (right < r.width && right - left > 2 * MAX_GUTTER_LINES) right -= leading(true, right - 1, -1);
+    if (top > 0 && bottom - top > 2 * MAX_GUTTER_LINES) top += leading(false, top, 1);
+    if (bottom < r.height && bottom - top > 2 * MAX_GUTTER_LINES) bottom -= leading(false, bottom - 1, -1);
+    return { left, top, width: right - left, height: bottom - top };
+}
 
 function insetFromGutters(r: Raster, cell: Box): Box {
     const i = GUTTER_INSET_PX;
@@ -1366,7 +1416,7 @@ export function detectPanelBoxes(data: Buffer, width: number, height: number, ch
     const gutter = measuredColor(r, best.colors.inside[0]);
     // Each crop fitted inside its cell; whether a bubble reaches out is
     // judged against the cell.
-    const crops = best.cells.map(cell => ({ ...trimBlendLines(r, insetFromGutters(r, cell), gutter), cell }));
+    const crops = best.cells.map(cell => ({ ...trimBlendLines(r, trimGutterLines(r, insetFromGutters(r, cell), gutter), gutter), cell }));
     return withBubbles(r, sortReadingOrder(crops, direction), gutter);
 }
 
