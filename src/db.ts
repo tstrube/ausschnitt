@@ -435,13 +435,19 @@ function getComics(): Comic[] {
     return rows.map(mapComicRow);
 }
 
+// Titles compare alphabetically, ignoring case and accents, with numbers
+// by value ("Vol 9" before "Vol 10").
+const titleCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
+// Sorted by title, so every list of the user's comics shows them in the
+// same order.
 export function getComicsForUser(userId: number): Comic[] {
     const rows = db.prepare(`
         SELECT comics.* FROM comics
         JOIN comic_subscriptions ON comic_subscriptions.comic_id = comics.id
         WHERE comic_subscriptions.user_id = ?
     `).all(userId) as ComicRow[];
-    return rows.map(mapComicRow);
+    return rows.map(mapComicRow).sort((a, b) => titleCollator.compare(a.title, b.title) || a.id - b.id);
 }
 
 export function isUserSubscribed(userId: number, comicId: number): boolean {
