@@ -93,6 +93,16 @@ label.settings-row {
     padding-right: 0;
 }
 
+/* A selected weekday is filled with the same blue as a switch that's on -
+   outline-secondary's own pressed look (a light gray fill, see buttons.css)
+   is easy to read as "off". The selector outranks buttons.css's dark-theme
+   override. */
+html[data-bs-theme] .schedule-days .btn {
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: var(--bs-primary);
+    --bs-btn-active-border-color: var(--bs-primary);
+}
+
 .schedule-time {
     width: auto;
     flex: 0 0 auto;
