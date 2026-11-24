@@ -4,7 +4,9 @@ block head
     link(rel='stylesheet' href='/css/reader.css')
 
 block body
-    .reader-shell
+    //- reader-rtl: the loading spinner turns counterclockwise, like the
+    //- panels run.
+    .reader-shell(class=comic.reading_direction === 'rtl' ? 'reader-rtl' : null)
         .reader-topbar
             .reader-topbar-group
                 a.btn.btn-outline-light.btn-icon(href='/' aria-label='Home' title='Home') 🏠
@@ -38,12 +40,25 @@ block body
                 each panel in panels
                     img.reader-scroll-panel(src=panel.imageUrl, width=panel.width, height=panel.height, data-panel-id=panel.id, data-page-id=panel.pageId, alt='Comic panel')
                 .reader-scroll-sentinel#bottomSentinel
-                .reader-loading#loadingIndicator
-                    .reader-spinner
+            //- Over the feed, not in it: a jump can take a while (pages
+            //- downloaded and split).
+            .reader-loading#loadingIndicator
+                .reader-spinner
         if !hideNav
             .reader-controls
                 button#firstBtn.btn.btn-outline-light(aria-label='First page') ⏮
                 button#latestBtn.btn.btn-outline-light(aria-label='Latest page') ⏭
+        else if firstOpen
+            //- The bottom bar's First/Latest, asked once: the first time
+            //- this account opens the comic.
+            .reader-start-dialog.visible#startDialog(role='dialog' aria-modal='true' aria-labelledby='startDialogTitle')
+                .reader-start-dialog-box
+                    strong#startDialogTitle Where do you want to start?
+                    button#startFirstBtn.btn.btn-primary(type='button') ⏮ From the beginning
+                    //- At the homepage that's where we already are.
+                    button#startLatestBtn.btn.btn-outline-light(type='button' data-here=startIsHome ? 'true' : null) ⏭ Newest page
+                    if !startIsHome
+                        button#startStayBtn.btn.btn-link.btn-sm.text-light(type='button') Stay here
 
     script(src='/js/readerScroll.js')
     script.
@@ -53,3 +68,4 @@ block body
         const initialBookmarks = !{JSON.stringify(bookmarks)};
         const anchorPanelId = !{anchorPanelId};
         const initialAtBookmark = !{atBookmark ? 'true' : 'false'};
+        const initialAtStart = !{atStart ? 'true' : 'false'};

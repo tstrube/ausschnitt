@@ -23,3 +23,11 @@
     background: #212529;
     z-index: 1090;
 }
+
+/* No rubber-band scrolling past the page's ends - pulled down, the header
+   would slide away from the status bar and show the black page behind it.
+   The page still scrolls normally within its content. */
+html,
+body {
+    overscroll-behavior: none;
+}

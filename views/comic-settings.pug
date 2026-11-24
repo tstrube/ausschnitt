@@ -6,7 +6,7 @@ block head
 
 block content
     include includes/schedule-picker
-    a.btn.btn-sm.btn-outline-secondary.mb-3(href=comic.selector_image ? `/reader/${comic.id}` : `/select/${comic.id}`) ← Back to comic
+    a.btn.btn-sm.btn-outline-secondary.mb-3(href=comic.selector_image ? `/reader/${comic.id}` : `/select/${comic.id}` data-direction=comic.reading_direction) ← Back to comic
     h1= comic.title
 
     //- Plain links rather than Bootstrap's JS tabs (no Bootstrap JS is

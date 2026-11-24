@@ -10,7 +10,7 @@ block content
         ul.list-unstyled.small.aligned-rows.aligned-rows-2col
             each bookmark in bookmarks.entries
                 li
-                    a.text-truncate(href=`/reader/${bookmark.comic_id}/jump/${bookmark.page_id}/${bookmark.panel_id}`)
+                    a.text-truncate(href=`/reader/${bookmark.comic_id}/jump/${bookmark.page_id}/${bookmark.panel_id}` data-direction=bookmark.comic_reading_direction)
                         div= bookmark.name
                         span.text-muted.small #{bookmark.comic_title} &middot; #{formatDateTime(bookmark.created_at)}
                     .d-flex.gap-1.align-items-center

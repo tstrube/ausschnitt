@@ -83,6 +83,35 @@ html, body {
     margin: 0;
 }
 
+/* First-open start dialog (scroll reader without its bottom bar). */
+.reader-start-dialog {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1050;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(0, 0, 0, .7);
+}
+
+.reader-start-dialog.visible {
+    display: flex;
+}
+
+.reader-start-dialog-box {
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+    width: 100%;
+    max-width: 20rem;
+    padding: 1.25rem;
+    border-radius: .5rem;
+    background: #212529;
+    color: #eee;
+    text-align: center;
+}
+
 .reader-resume-banner {
     display: none;
     align-items: center;
@@ -147,6 +176,7 @@ html, body {
 .reader-loading {
     position: absolute;
     inset: 0;
+    z-index: 3;
     display: none;
     align-items: center;
     justify-content: center;
@@ -163,7 +193,16 @@ html, body {
     border: .3rem solid rgba(255, 255, 255, .3);
     border-top-color: #fff;
     border-radius: 50%;
+    /* A dark disc behind it, so it shows on bright comic pages too (round
+       and centered, so it doesn't visibly turn with the spinner). */
+    background: rgba(0, 0, 0, .8);
+    box-shadow: 0 0 0 .75rem rgba(0, 0, 0, .8), 0 0 1.5rem .75rem rgba(0, 0, 0, .5);
     animation: reader-spin .8s linear infinite;
+}
+
+/* Right-to-left comics: counterclockwise. */
+.reader-rtl .reader-spinner {
+    animation-direction: reverse;
 }
 
 @keyframes reader-spin {

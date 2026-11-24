@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import * as db from '../db';
 import path from 'path';
 import { ReaderCache } from '../readerCache';
-import { fetchAndStorePage, releaseIfIgnoredByAll } from '../utils/fetch';
+import { fetchAndStorePage, isComicHomeUrl, releaseIfIgnoredByAll } from '../utils/fetch';
 import { Panel, ReaderComic } from '../types';
 import { IMAGES_DIR } from '../paths';
 import sharp from 'sharp';
@@ -111,9 +111,16 @@ const VALID_DIRECTIONS: NavDirection[] = ['next', 'back', 'first', 'latest', 'pa
 // at it, so normal reading auto-saves. After a First/Latest jump they're
 // just browsing; only "bookmark" ("Save Resume Point") commits a new
 // position. Resume re-syncs to the bookmark. First/Latest never move it -
-// that's what makes them undoable.
+// that's what makes them undoable - except on a comic never read before.
 const CONDITIONAL_BOOKMARK_DIRECTIONS: NavDirection[] = ['next', 'back', 'page-first', 'ignore'];
 const ALWAYS_BOOKMARK_DIRECTIONS: NavDirection[] = ['resume', 'bookmark'];
+
+// Whether a window asked for `before` panels ahead of its anchor reaches
+// the comic's start - fewer came back. The scroll feed then needs no
+// runway above it (public/CLAUDE.md).
+function windowReachesStart(window: Panel[], anchorPanelId: number, before: number): boolean {
+    return before > 0 && window.findIndex(p => p.id === anchorPanelId) < before;
+}
 
 // Panels the scroll feed loads on either side of the current position on
 // the initial page load, and the most one /scroll-window request returns.
@@ -154,8 +161,14 @@ router.get('/:id', async (req: Request, res: Response) => {
             comic,
             panels: await scrollPanelsJson(window),
             anchorPanelId: panel.id,
+            atStart: windowReachesStart(window, panel.id, SCROLL_WINDOW_SIZE),
             atBookmark: isAtBookmark(comic, panel),
             hideNav: db.getEffectiveHideScrollNav(comic),
+            // Never read here before: without the bottom bar, the start
+            // dialog is the only way to First/Latest.
+            firstOpen: !comic.last_read_page,
+            // Opened at the comic's homepage - its newest page already.
+            startIsHome: isComicHomeUrl(db.getPage(panel.page_id)?.original_url ?? '', comic.url),
             bookmarkHistory: db.getRecentBookmarkHistory(req.user!.id, comic.id, db.MAX_BOOKMARK_HISTORY),
             bookmarks: db.getBookmarksForComic(req.user!.id, comic.id)
         });
@@ -203,7 +216,8 @@ router.get('/:id/scroll-window', async (req: Request, res: Response) => {
     const window = await readerCache.getWindowAround(anchorPanel.page_id, anchorPanel.id, before, after);
     if (window.length) readerCache.readAhead(window[window.length - 1].page_id);
     res.json({
-        panels: await scrollPanelsJson(window)
+        panels: await scrollPanelsJson(window),
+        atStart: windowReachesStart(window, anchorPanel.id, before)
     });
 });
 
@@ -276,6 +290,8 @@ router.post('/:id/nav/:direction', async (req: Request, res: Response) => {
         || (req.body?.fromPanelId != null && clientFollowsBookmark(comic, req.body.fromPanelId));
 
     let panel: Panel | null = null;
+    // Ignore on the newest page lands on the page before it instead.
+    let ignoredNewest = false;
     switch (direction) {
         case 'next':
             panel = await readerCache.getNextPanel();
@@ -299,19 +315,28 @@ router.post('/:id/nav/:direction', async (req: Request, res: Response) => {
         case 'bookmark':
             panel = readerCache.getCurrentPanel();
             break;
-        case 'ignore':
-            if (sourcePanel) db.setUserPageIgnored(req.user!.id, sourcePanel.page_id, true);
-            panel = await readerCache.skipCurrentPage();
-            if (sourcePanel) {
-                const ignoredPage = db.getPage(sourcePanel.page_id);
-                if (ignoredPage) releaseIfIgnoredByAll(comic, ignoredPage);
+        case 'ignore': {
+            if (!sourcePanel) break;
+            db.setUserPageIgnored(req.user!.id, sourcePanel.page_id, true);
+            const skipped = await readerCache.skipCurrentPage();
+            if (!skipped) {
+                // Nothing else left to read: the page stays where it was.
+                db.setUserPageIgnored(req.user!.id, sourcePanel.page_id, false);
+                await readerCache.loadPanel(sourcePanel.page_id, sourcePanel.id);
+                break;
             }
+            panel = skipped.panel;
+            ignoredNewest = skipped.back;
+            const ignoredPage = db.getPage(sourcePanel.page_id);
+            if (ignoredPage) releaseIfIgnoredByAll(comic, ignoredPage);
             break;
+        }
     }
 
     if (!panel) {
         const message = direction === 'next' ? 'This is the latest available page.'
             : direction === 'back' ? 'This is the first available page.'
+            : direction === 'ignore' ? 'Every other page is ignored - this one stays.'
             : 'Target page/panel not found';
         res.status(404).json({ error: message });
         return;
@@ -321,7 +346,10 @@ router.post('/:id/nav/:direction', async (req: Request, res: Response) => {
         snapshotLiveBookmarkIfReplacing(req.user!.id, comic, panel.page_id, panel.id);
     }
 
-    const shouldPersist = ALWAYS_BOOKMARK_DIRECTIONS.includes(direction)
+    // On a comic never read before, First/Latest pick where reading starts
+    // (the scroll reader's start dialog): nothing to undo, no checkpoint.
+    const startsReading = !comic.last_read_page && (direction === 'first' || direction === 'latest');
+    const shouldPersist = ALWAYS_BOOKMARK_DIRECTIONS.includes(direction) || startsReading
         || (CONDITIONAL_BOOKMARK_DIRECTIONS.includes(direction) && wasAtBookmark);
     if (shouldPersist) {
         db.updateLastRead(req.user!.id, comic.id, panel.page_id, panel.id);
@@ -342,7 +370,8 @@ router.post('/:id/nav/:direction', async (req: Request, res: Response) => {
     res.json({
         ...navResponse(req.user!.id, updatedComic, panel),
         // What the client's Undo needs to put things back.
-        ignoredPanelId: direction === 'ignore' && sourcePanel ? sourcePanel.id : undefined
+        ignoredPanelId: direction === 'ignore' && sourcePanel ? sourcePanel.id : undefined,
+        ignoredNewest
     });
 });
 

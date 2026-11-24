@@ -37,6 +37,10 @@
   first, so a page row, its panels and its link are written together with
   no `await` between - a page is never visible without its panels.
 - **Ignored pages**: `user_ignored_pages`, per account, always reversible.
+  Ignore jumps to the next page that isn't ignored - from the newest page,
+  back to the last panel of the one before it (`skipCurrentPage`,
+  `ignoredNewest` in the response for the toast); with every other page
+  ignored, the ignore is undone.
   Next/Back and the scroll feed skip them via `firstNonIgnoredPage`, which
   steps until a page that isn't ignored, with no length limit; it stops if
   it reaches a page twice (a link cycle from the site's own nav). Once

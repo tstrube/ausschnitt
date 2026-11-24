@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let mostVisiblePanelId = anchorPanelId;
     let loadingMore = false;
-    let noMoreBefore = false;
+    let noMoreBefore = initialAtStart;
     // Unlike noMoreBefore (the start of an archive doesn't change), the
     // latest edge genuinely does move forward as a comic publishes new
     // pages - a plain sticky flag would mean a session that reached "no
@@ -445,8 +445,9 @@ document.addEventListener('DOMContentLoaded', () => {
     feed.addEventListener('touchend', touchEnded, { passive: true });
     feed.addEventListener('touchcancel', touchEnded, { passive: true });
 
-    // Before the first paint, so it's not a scroll the reader can see.
-    setTopSpacer(RUNWAY_PX);
+    // Before the first paint, so it's not a scroll the reader can see. None
+    // when the comic's start is already loaded - nothing to make room for.
+    setTopSpacer(runwayTarget());
 
     // The server sends a window centered on the anchor, but the browser
     // just shows it from the top by default - scroll the anchor into view.
@@ -471,7 +472,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!anchor) return;
 
         loadingMore = true;
-        setLoading(true);
         const generation = feedGeneration;
         try {
             const params = direction === 'before'
@@ -506,6 +506,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 newPanels = fitting;
                 if (!newPanels.length) return;
+                // This batch reaches the start: the runway above it goes
+                // at the next idle moment.
+                if (data.atStart && !beforeDeferred) noMoreBefore = true;
             }
 
             const frag = document.createDocumentFragment();
@@ -526,7 +529,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (err) {
             console.error('Failed to load more panels:', err);
         } finally {
-            setLoading(false);
             loadingMore = false;
             checkEdges();
         }
@@ -571,8 +573,8 @@ document.addEventListener('DOMContentLoaded', () => {
             img.remove();
         });
         visibleHeights.clear();
-        noMoreBefore = false;
-        setTopSpacer(RUNWAY_PX);
+        noMoreBefore = !!data.atStart;
+        setTopSpacer(runwayTarget());
         noMoreAfterSince = null;
 
         const frag = document.createDocumentFragment();
@@ -626,6 +628,31 @@ document.addEventListener('DOMContentLoaded', () => {
     // Both absent when the bottom bar is hidden (comic/global setting).
     firstBtn?.addEventListener('click', () => jumpTo(`/reader/${comicId}/nav/first`, { panelId: mostVisiblePanelId }));
     latestBtn?.addEventListener('click', () => jumpTo(`/reader/${comicId}/nav/latest`, { panelId: mostVisiblePanelId }));
+    // The first-open start dialog (reader-scroll.pug) - only there when the
+    // bottom bar isn't: its buttons do what First/Latest would.
+    const startDialog = document.getElementById('startDialog');
+    if (startDialog) {
+        // The server saves a First/Latest jump on a never-read comic as the
+        // resume point. Staying reports the position like scrolling would,
+        // which saves it too - the dialog doesn't come back either way.
+        const startLatestBtn = document.getElementById('startLatestBtn');
+        const start = direction => {
+            startDialog.classList.remove('visible');
+            if (direction) {
+                jumpTo(`/reader/${comicId}/nav/${direction}`, { panelId: mostVisiblePanelId });
+            } else {
+                lastReportedPanelId = null;
+                flushReport();
+            }
+        };
+        document.getElementById('startFirstBtn').addEventListener('click', () => start('first'));
+        startLatestBtn.addEventListener('click', () => start(startLatestBtn.dataset.here ? null : 'latest'));
+        document.getElementById('startStayBtn')?.addEventListener('click', () => start(null));
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && startDialog.classList.contains('visible')) start(null);
+        });
+        document.getElementById('startFirstBtn').focus();
+    }
     resumeBtn.addEventListener('click', () => jumpTo(`/reader/${comicId}/nav/resume`));
     setBookmarkBtn.addEventListener('click', () => jumpTo(`/reader/${comicId}/nav/bookmark`, { panelId: mostVisiblePanelId }));
 
@@ -743,7 +770,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         if (!data || !data.ignoredPanelId) return;
         const ignoredPanelId = data.ignoredPanelId;
-        showToast('Page ignored.', {
+        showToast(data.ignoredNewest ? 'Page ignored. It was the newest - back to the one before.' : 'Page ignored.', {
             duration: 8000,
             action: {
                 label: 'Undo',

@@ -9,10 +9,13 @@
   30000px) while earlier panels may exist: earlier panels are inserted
   into it and take exactly their height from it, and only as many as fit
   (`fitInRunway`, computed from the known sizes); the rest load after the
-  next top-up. `scrollTop` is never written during a drag or momentum
-  flick (iOS overrides such writes after the content has moved): the
-  runway is topped up, or removed once the comic's start is loaded, only
-  when idle - no touch and no scroll event for 1s. The feed has
+  next top-up. No runway at all when the comic's start is already in the
+  feed: the server says so (`atStart` on the initial render, a rebuild's
+  window and a load-before) - otherwise opening on the first page would
+  show 30000px of black above it. `scrollTop` is never written during a
+  drag or momentum flick (iOS overrides such writes after the content has
+  moved): the runway is topped up, or removed once the comic's start is
+  loaded, only when idle - no touch and no scroll event for 1s. The feed has
   `overflow-anchor: none`. A rebuild (any jump) bumps `feedGeneration`,
   and a load requested before it is discarded. Loads skip panels already
   in the feed. Loading is checked directly (`checkEdges`): after every
@@ -30,6 +33,23 @@
   page re-reports and restores it (`restorePendingPosition`). The note is
   cleared when the page becomes visible again, never in the hide handler
   (visibilitychange and pagehide both fire on reload).
+- **Start dialog** (`reader-scroll.pug`, `#startDialog`): with the bottom
+  bar hidden there is no other way to First/Latest, so the first open of a
+  comic by an account (no resume point yet, `firstOpen`) asks once. Its
+  buttons call the same `nav/first` / `nav/latest` jumps, which on a
+  never-read comic save the landing spot as the resume point (no history
+  entry). Opened at the comic's homepage (`startIsHome`), "Newest page"
+  stays put - that's the newest already; otherwise there's also "Stay
+  here". Staying (and Escape) reports the position like scrolling, which
+  saves it the same way. Either way the dialog doesn't return. Not shown
+  when the bottom bar is there.
+- **Loading spinners**: jumps cover the feed with `#loadingIndicator`
+  (in `.reader-feed-area`, outside the scrolling feed); loading more while
+  scrolling shows none. Links into `/reader/` show a full-page spinner
+  until the reader page arrives (`js/pageLoading.js`), as opening a comic
+  may download and split pages first. Both turn clockwise, or
+  counterclockwise for a right-to-left comic (`.reader-rtl` on the reader
+  shell; `data-direction` on the link).
 - **Dark only**: `views/layout.pug` sets Bootstrap 5.3's
   `data-bs-theme="dark"` and `color-scheme: dark`; `css/dark.css` makes the
   page background pure black (Bootstrap's dark body gray reads as too
@@ -56,7 +76,9 @@
   every page, `css/status-bar.css`) is that element, `#212529`, as high as
   `env(safe-area-inset-top)` (6px minimum); each page's top bar reaches up
   behind it with a top border of that inset in the same color. A new kind
-  of top bar gets the same border.
+  of top bar gets the same border. Every page has `overscroll-behavior: none`, so it
+  can't be pulled past its ends (the header would slide away from the
+  status bar).
 - **Buttons** (`css/buttons.css`, global): CSS-variable overrides fix
   low-contrast Bootstrap variants on the dark page (`.btn-outline-secondary`)
   - use the same pattern for any other contrast fix. Touch-only

@@ -21,12 +21,14 @@ html(data-bs-theme='dark')
         link(rel='stylesheet' href='/css/toast.css')
         link(rel='stylesheet' href='/css/buttons.css')
         link(rel='stylesheet' href='/css/status-bar.css')
+        link(rel='stylesheet' href='/css/page-loading.css')
         block head
     body
         //- Holds the iOS status bar's color - see css/status-bar.css.
         .status-bar-backdrop(aria-hidden='true')
         script(src='/js/toast.js')
         script(src='/js/pwa.js')
+        script(src='/js/pageLoading.js')
         block body
             nav.navbar.navbar-dark.bg-dark.mb-4
                 .container-fluid

@@ -948,15 +948,15 @@ export function getBookmarksForComic(userId: number, comicId: number): Bookmark[
 }
 
 // Every bookmark this user has, across every comic - the manager page.
-export function getBookmarksPageForUser(userId: number, page: number, pageSize: number): Paginated<Bookmark & { comic_title: string }> {
+export function getBookmarksPageForUser(userId: number, page: number, pageSize: number): Paginated<Bookmark & { comic_title: string; comic_reading_direction: string }> {
     const total = (db.prepare(`SELECT COUNT(*) as count FROM bookmarks WHERE user_id = ?`).get(userId) as { count: number }).count;
     const entries = db.prepare(`
-        SELECT bookmarks.*, comics.title as comic_title FROM bookmarks
+        SELECT bookmarks.*, comics.title as comic_title, comics.reading_direction as comic_reading_direction FROM bookmarks
         JOIN comics ON comics.id = bookmarks.comic_id
         WHERE bookmarks.user_id = ?
         ORDER BY bookmarks.created_at DESC, bookmarks.id DESC
         LIMIT ? OFFSET ?
-    `).all(userId, pageSize, (page - 1) * pageSize) as (Bookmark & { comic_title: string })[];
+    `).all(userId, pageSize, (page - 1) * pageSize) as (Bookmark & { comic_title: string; comic_reading_direction: string })[];
     return { entries, total };
 }
 

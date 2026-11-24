@@ -1,0 +1,31 @@
+/* Spinner while a reader page loads (js/pageLoading.js). */
+.page-loading {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, .5);
+}
+
+.page-loading-spinner {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: .3rem solid rgba(255, 255, 255, .3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    /* A dark disc behind it, so it shows on bright comic pages too (round
+       and centered, so it doesn't visibly turn with the spinner). */
+    background: rgba(0, 0, 0, .8);
+    box-shadow: 0 0 0 .75rem rgba(0, 0, 0, .8), 0 0 1.5rem .75rem rgba(0, 0, 0, .5);
+    animation: page-loading-spin .8s linear infinite;
+}
+
+.page-loading.rtl .page-loading-spinner {
+    animation-direction: reverse;
+}
+
+@keyframes page-loading-spin {
+    to { transform: rotate(360deg); }
+}

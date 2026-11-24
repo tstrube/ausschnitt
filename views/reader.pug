@@ -4,7 +4,9 @@ block head
     link(rel='stylesheet' href='/css/reader.css')
 
 block body
-    .reader-shell
+    //- reader-rtl: the loading spinner turns counterclockwise, like the
+    //- panels run.
+    .reader-shell(class=comic.reading_direction === 'rtl' ? 'reader-rtl' : null)
         .reader-topbar
             .reader-topbar-group
                 a.btn.btn-outline-light.btn-icon(href='/' aria-label='Home' title='Home') 🏠
