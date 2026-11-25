@@ -97,3 +97,8 @@
   `icons/icon-maskable.svg` and `icons/icon-full.svg` (for
   `apple-touch-icon.png`); re-render them if the favicon changes. Static
   files are served before auth (the manifest is fetched without cookies).
+  `open.html` + `js/open.js`: where a notification tap lands first -
+  spinner, then `location.replace` to `?to=` (only
+  `/reader/:id/open/<target>`, else `/`; `?dir=rtl` turns it the other
+  way). `sw.js`'s `openUrl` and `newPageNotifier.ts`'s ntfy click URL
+  build the same address.

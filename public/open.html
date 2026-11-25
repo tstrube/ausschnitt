@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#212529">
+    <title>Ausschnitt</title>
+    <!-- Where tapping a new-page notification lands first (public/sw.js,
+         ntfy's click URL): a static page that shows the loading spinner at
+         once, then opens the reader - which can take several seconds while
+         the new pages are downloaded and split, and the app would otherwise
+         sit on whatever it showed before with no sign the tap did anything. -->
+    <link rel="stylesheet" href="/css/page-loading.css">
+    <style>
+        :root { color-scheme: dark; }
+        html, body { margin: 0; background: #000; }
+    </style>
+</head>
+<body>
+    <div class="page-loading" aria-label="Loading">
+        <div class="page-loading-spinner"></div>
+    </div>
+    <script src="/js/open.js"></script>
+</body>
+</html>

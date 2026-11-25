@@ -120,8 +120,10 @@
   accounts due together share one look at the site. Each (account, comic)
   compares it with its own `notified_signature`: the first check is a
   baseline, a change notifies unless that URL is already stored. Tapping
-  opens `GET
-  /reader/:id/open/notification`, resolved at tap time to the comic's
+  (Web Push and ntfy alike) opens `public/open.html`, which shows the
+  loading spinner at once and replaces itself with `GET
+  /reader/:id/open/notification` - that can take seconds while new pages
+  download, with no sign the tap did anything otherwise - resolved at tap time to the comic's
   `notification_target`, else the account's
   (`db.getEffectiveNotificationTarget`): the first new page (`new`, the
   default), the resume point, or the newest page. "First new page" is the

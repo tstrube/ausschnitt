@@ -58,6 +58,8 @@ export interface PushPayload {
     body: string;
     /** Set for new-page notifications - tapping opens this comic (see public/sw.js). */
     comicId?: number;
+    /** The comic's reading direction - which way the spinner turns while it opens. */
+    direction?: string;
     tag?: string;
 }
 
@@ -107,9 +109,10 @@ async function sendToNtfy(userId: number, payload: PushPayload): Promise<boolean
             console.error(`ntfy for user ${userId}: ${user.ntfy.url} is not a public address`);
             return false;
         }
-        // Same target as tapping a Web Push notification (public/sw.js).
+        // Same target as tapping a Web Push notification (public/sw.js's
+        // openUrl).
         const click = payload.comicId
-            ? `${user.ntfy.origin}/reader/${payload.comicId}/open/notification`
+            ? `${user.ntfy.origin}/open.html?${openParams(payload.comicId, payload.direction)}`
             : `${user.ntfy.origin}/`;
         await sendNtfy(topic, user.ntfy.token, { title: payload.title, message: payload.body, click });
         return true;
@@ -117,6 +120,12 @@ async function sendToNtfy(userId: number, payload: PushPayload): Promise<boolean
         console.error(`ntfy for user ${userId} failed:`, err);
         return false;
     }
+}
+
+function openParams(comicId: number, direction: string | undefined): URLSearchParams {
+    const params = new URLSearchParams({ to: `/reader/${comicId}/open/notification` });
+    if (direction === 'rtl') params.set('dir', 'rtl');
+    return params;
 }
 
 export function sendTestNotification(userId: number): Promise<{ sent: number; failed: number }> {
@@ -189,7 +198,7 @@ async function notifyNewComics(userId: number, comics: Comic[]): Promise<void> {
         return;
     }
     for (const comic of comics) {
-        await sendToUser(userId, { title: comic.title, body: 'New page available', comicId: comic.id, tag: `comic-${comic.id}` });
+        await sendToUser(userId, { title: comic.title, body: 'New page available', comicId: comic.id, direction: comic.reading_direction, tag: `comic-${comic.id}` });
     }
 }
 

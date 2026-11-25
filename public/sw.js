@@ -48,10 +48,11 @@ self.addEventListener('push', event => {
 
 self.addEventListener('notificationclick', event => {
     event.notification.close();
-    const comicId = event.notification.data && event.notification.data.comicId;
+    const data = event.notification.data || {};
     // No action buttons - iOS can't show them, so every platform gets the
     // same single tap, resolved server-side to the account's preference.
-    const url = comicId ? `/reader/${comicId}/open/notification` : '/';
+    // Through open.html, which shows a spinner while the reader loads.
+    const url = data.comicId ? openUrl(data.comicId, data.direction) : '/';
 
     event.waitUntil((async () => {
         // Reuse an open Ausschnitt window rather than stacking new ones.
@@ -69,3 +70,10 @@ self.addEventListener('notificationclick', event => {
         await self.clients.openWindow(url);
     })());
 });
+
+// Kept in step with newPageNotifier.ts's ntfy click URL.
+function openUrl(comicId, direction) {
+    const params = new URLSearchParams({ to: `/reader/${comicId}/open/notification` });
+    if (direction === 'rtl') params.set('dir', 'rtl');
+    return `/open.html?${params}`;
+}
