@@ -251,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         if (!data || !data.ignoredPanelId) return;
         const ignoredPanelId = data.ignoredPanelId;
-        showToast(data.ignoredNewest ? 'Page ignored. It was the newest - back to the one before.' : 'Page ignored.', {
+        showToast('Page ignored.', {
             duration: 8000,
             action: {
                 label: 'Undo',

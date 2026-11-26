@@ -1,7 +1,7 @@
 // Two-click action instead of a native confirm() popup: first click arms
 // the button, a second click within a few seconds actually performs it.
-// Shared by the comic list, bookmarks manager, admin cache controls and the
-// readers' Ignore button.
+// Shared by the comic settings and Settings pages, bookmarks manager,
+// admin cache controls and the readers' Ignore button.
 function armTwoClickAction(btn, { url, armedText, armedClass, restClass, onFail, onSuccess }) {
     const originalText = btn.textContent;
     let armed = false;

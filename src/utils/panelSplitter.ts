@@ -17,7 +17,8 @@ import { ReadingDirection } from '../types';
  *    the area being cut, every line all one gutter color (at most
  *    CLEAN_LINE_NOISE of its pixels off, and not counting the last
  *    LINE_END_SLACK_PX at either end, where frame corners antialias into
- *    it).
+ *    it). A band that a drawn frame boxes in at both ends, without frames
+ *    lining both its sides, is blank space inside one panel (enclosed).
  * 3. The page is cut into rows along its gutters, each row into columns,
  *    each column into rows and so on (partition), as long as every part is
  *    panel-sized. At the page level a part too small to be a panel at the
@@ -92,6 +93,11 @@ function colorDistance(a: RGB, b: RGB): number {
 // The color of pixel `p` (y * width + x).
 function pixelAt(r: Raster, p: number): RGB {
     return readPixel(r.data, p * r.channels, r.channels);
+}
+
+// Pixel `i` along a line: a column (x = pos) or a row (y = pos).
+function linePixel(r: Raster, column: boolean, pos: number, i: number): number {
+    return column ? i * r.width + pos : pos * r.width + i;
 }
 
 // colorDistance(pixelAt(r, p), color), without allocating.
@@ -399,11 +405,11 @@ const LINE_END_SLACK_PX = 3;
 // Parts smaller than this fraction of the page (or MIN_PANEL_PX) aren't
 // panels.
 const MIN_PANEL_FRACTION = 0.08;
-const MIN_COVERAGE = 0.5;
 const MAX_PAGE_ASPECT = 1.5;
 const MIN_PANEL_PX = 30;
 const MAX_PANELS = 16;
-// A cell this nearly all gutter color holds no panel.
+// A cell this nearly all gutter color holds no panel (and an area this
+// nearly all gutter color around speech bubbles holds nothing else).
 const EMPTY_CELL_FRACTION = 0.99;
 const MOSTLY_GUTTER = 0.8;
 // A row gutter counts as present but blocked in a column where at least
@@ -436,7 +442,7 @@ function isCleanLine(r: Raster, column: boolean, pos: number, from: number, to: 
     for (const color of colors) {
         let off = 0;
         for (let i = inFrom; i < inTo && off <= allowed; i++) {
-            const p = column ? i * r.width + pos : pos * r.width + i;
+            const p = linePixel(r, column, pos, i);
             if (!(ignoreBubbles && r.bubbleMask[p]) && distanceAt(r, p, color) > GUTTER_TOLERANCE) off++;
         }
         if (off <= allowed) return true;
@@ -503,8 +509,47 @@ function findGutters(r: Raster, box: Box, columns: boolean, colors: RGB[], minLe
             && isFramed(r, b, columns, from, to, colors)
             && b.from - start >= minPart && end - b.to >= minPart);
     return [...clean, ...crossed]
-        .filter(b => onGutterColor(r, b, columns, from, to, colors))
+        .filter(b => onGutterColor(r, b, columns, from, to, colors) && !enclosed(r, b, columns, from, to, colors))
         .sort((x, y) => x.from - y.from);
+}
+
+// A gutter runs out into the gutters around it. A band boxed in at both
+// ends by a drawn frame - a line across its full thickness, clearly not
+// gutter color (FRAME_CONTRAST, as isFramed), within the slack a line's
+// ends get for antialiased corners (LINE_END_SLACK_PX), and thin
+// (FRAME_SEARCH_PX) with gutter color again behind it - is blank space
+// inside one panel (a page in a drawn browser window), not a gap between
+// two. A seam a shade off the gutter color closes nothing. Panels drawn
+// on a shared outline box in the gaps between them too - those are lined
+// with frames on both sides (isFramed), a blank strip inside a panel isn't.
+function enclosed(r: Raster, band: Band, columns: boolean, from: number, to: number, colors: RGB[]): boolean {
+    const limit = columns ? r.height : r.width;
+    // Every pixel across the band at line i: clearly off every gutter
+    // color (a frame), or (`gutter`) on one.
+    const across = (i: number, gutter: boolean) => {
+        for (let p = band.from; p < band.to; p++) {
+            const at = linePixel(r, columns, p, i);
+            const onColor = gutter
+                ? colors.some(c => distanceAt(r, at, c) <= GUTTER_TOLERANCE)
+                : !colors.some(c => distanceAt(r, at, c) < FRAME_CONTRAST);
+            if (!onColor) return false;
+        }
+        return true;
+    };
+    const closedAt = (start: number, dir: number) => {
+        for (let k = 0; k <= LINE_END_SLACK_PX; k++) {
+            const i = start + dir * k;
+            if (i < from || i >= to || !across(i, false)) continue;
+            for (let j = 1; j <= FRAME_SEARCH_PX; j++) {
+                const behind = i - dir * j;
+                if (behind < 0 || behind >= limit) return false;
+                if (across(behind, true)) return true;
+            }
+            return false;
+        }
+        return false;
+    };
+    return closedAt(from, 1) && closedAt(to - 1, -1) && !isFramed(r, band, columns, from, to, colors);
 }
 
 // A gutter's pixels scatter around its color (compression, dithering), so
@@ -525,7 +570,7 @@ function onGutterColor(r: Raster, band: Band, columns: boolean, from: number, to
     for (let p = band.from; p < band.to; p++) {
         let red = 0, green = 0, blue = 0, count = 0;
         for (let i = from; i < to; i++) {
-            const at = columns ? i * r.width + p : p * r.width + i;
+            const at = linePixel(r, columns, p, i);
             if (r.bubbleMask[at]) continue;
             const c = pixelAt(r, at);
             red += c.r;
@@ -565,7 +610,7 @@ const MAX_BUBBLE_SHARE = 0.5;
 function bubbleShare(r: Raster, band: Band, columns: boolean, from: number, to: number): number {
     let masked = 0;
     for (let p = band.from; p < band.to; p++) {
-        for (let i = from; i < to; i++) if (r.bubbleMask[columns ? i * r.width + p : p * r.width + i]) masked++;
+        for (let i = from; i < to; i++) if (r.bubbleMask[linePixel(r, columns, p, i)]) masked++;
     }
     return masked / Math.max(1, (band.to - band.from) * (to - from));
 }
@@ -585,7 +630,7 @@ function isFramed(r: Raster, band: Band, columns: boolean, from: number, to: num
         let dark = 0;
         let counted = 0;
         for (let i = from; i < to; i++) {
-            const p = columns ? i * r.width + pos : pos * r.width + i;
+            const p = linePixel(r, columns, pos, i);
             if (r.bubbleMask[p]) continue;
             counted++;
             if (colors.every(c => distanceAt(r, p, c) >= FRAME_CONTRAST)) dark++;
@@ -608,7 +653,7 @@ function isFramed(r: Raster, band: Band, columns: boolean, from: number, to: num
 // top or bottom edge (the title, the footer) is dropped instead; anywhere
 // else, a too-small part joins its smaller neighbor (the gutter between
 // them isn't cut).
-function partition(r: Raster, box: Box, colors: GutterColors, minSize: { width: number; height: number }, pageLevel: boolean, mergeText: boolean): Node {
+function partition(r: Raster, box: Box, colors: GutterColors, minSize: { width: number; height: number }, pageLevel: boolean): Node {
     const gutterColors = pageLevel ? colors.page : colors.inside;
     for (const columns of [false, true]) {
         const minPart = columns ? minSize.width : minSize.height;
@@ -659,7 +704,7 @@ function partition(r: Raster, box: Box, colors: GutterColors, minSize: { width: 
             const tolerance = gutterNoise(r, gutters[i], columns, box, gutterColors);
             const text = gutterShare(r, before, colors.inside, false, tolerance) >= MOSTLY_GUTTER && gutterShare(r, after, colors.inside, false, tolerance) >= MOSTLY_GUTTER
                 && !isFramed(r, gutters[i], columns, columns ? box.top : box.left, columns ? box.top + box.height : box.left + box.width, gutterColors);
-            if (mergeText && (text || onlyBubbles(r, before, colors.inside) || onlyBubbles(r, after, colors.inside))) {
+            if ((text || onlyBubbles(r, before, colors.inside) || onlyBubbles(r, after, colors.inside))) {
                 gutters.splice(i, 1);
                 i = 0;
             } else {
@@ -676,7 +721,7 @@ function partition(r: Raster, box: Box, colors: GutterColors, minSize: { width: 
                 : { left: box.left, top: edges[i], width: box.width, height: edges[i + 1] - edges[i] };
             // Dropping the title and footer leaves the page level, as does
             // any cut.
-            parts.push(partition(r, part, colors, minSize, pageLevel && gutters.length === 0, mergeText));
+            parts.push(partition(r, part, colors, minSize, pageLevel && gutters.length === 0));
         }
         if (parts.length === 1) return parts[0];
         return { box, split: { columns, parts, gutters } };
@@ -736,25 +781,16 @@ function panelsWith(r: Raster, colors: GutterColors): Box[] {
         // cut to a usual page's proportion (MAX_PAGE_ASPECT).
         height: Math.max(MIN_PANEL_PX, Math.min(r.height, r.width * MAX_PAGE_ASPECT) * MIN_PANEL_FRACTION)
     };
-    // Joining text gaps never makes a page readable in order that wasn't:
-    // the order check also runs on the cut without it. Both are checked
-    // once gaps with no panel edge on either side are joined
-    // (alignTree) - those are no cuts.
-    const unmerged = partition(r, page, colors, minSize, true, false);
-    alignTree(r, unmerged, colors.inside);
-    if (rowsBrokenAcrossColumns(r, unmerged, colors.inside)) return [];
-    const root = partition(r, page, colors, minSize, true, true);
+    const root = partition(r, page, colors, minSize, true);
     // Too many cells with content to be panels before any are joined: no
     // split.
     if (leaves(root).filter(b => gutterShare(r, b, colors.inside) < EMPTY_CELL_FRACTION).length > MAX_PANELS) return [];
+    // The reading-order check runs once gaps with no panel edge on either
+    // side are joined (alignTree) - those are no cuts.
     alignTree(r, root, colors.inside);
     if (rowsBrokenAcrossColumns(r, root, colors.inside)) return [];
-    let cells = leaves(root).filter(b => gutterShare(r, b, colors.inside) < EMPTY_CELL_FRACTION);
+    let cells = leaves(root);
     if (cells.length < 2 || cells.length > MAX_PANELS) return [];
-    // Panels make up the page: cells covering only a small part of it (all
-    // the rest dropped as too small) are no split of it.
-    const covered = cells.reduce((sum, c) => sum + c.width * c.height, 0);
-    if (covered < page.width * page.height * MIN_COVERAGE) return [];
     // Inner gutters in another color than the page's margin may continue
     // as a frame around the whole panel area (a black frame on a white
     // page): the cut leaves it on the panels' outer sides only.
@@ -846,7 +882,7 @@ function hasEdge(r: Raster, box: Box, columns: boolean, pos: number, dir: number
         if (line < 0 || line >= limit) break;
         let content = 0;
         for (let i = from; i < to; i++) {
-            const p = columns ? i * r.width + line : line * r.width + i;
+            const p = linePixel(r, columns, line, i);
             if (colors.every(c => distanceAt(r, p, c) > tolerance)) content++;
         }
         if (content >= (to - from) * PANEL_EDGE_FRACTION) return true;
@@ -870,7 +906,7 @@ function gutterNoise(r: Raster, band: Band, columns: boolean, box: Box, colors: 
     const distances: number[] = [];
     for (let p = inner.from; p < inner.to; p++) {
         for (let i = from; i < to; i++) {
-            const at = columns ? i * r.width + p : p * r.width + i;
+            const at = linePixel(r, columns, p, i);
             if (!r.bubbleMask[at]) distances.push(Math.min(...colors.map(c => distanceAt(r, at, c))));
         }
     }
@@ -914,29 +950,26 @@ function gutterWidths(node: Node): number[] {
 const OUTER_FRAME_TOLERANCE = 48;
 
 function trimOuterFrame(r: Raster, cell: Box, area: Box, colors: RGB[], max: number): Box {
-    let left = cell.left;
-    let top = cell.top;
-    let right = cell.left + cell.width;
-    let bottom = cell.top + cell.height;
     // The frame's outermost lines are often antialiased toward the image
     // edge: OUTER_FRAME_TOLERANCE.
-    const clean = (column: boolean, pos: number) => {
-        const from = column ? top : left;
-        const to = column ? bottom : right;
+    const clean = (e: Edges, column: boolean, pos: number) => {
+        const [from, to] = span(e, column);
         const allowed = Math.floor((to - from) * CLEAN_LINE_NOISE);
         return colors.some(c => {
             let off = 0;
             for (let i = from; i < to && off <= allowed; i++) {
-                if (distanceAt(r, column ? i * r.width + pos : pos * r.width + i, c) > OUTER_FRAME_TOLERANCE) off++;
+                if (distanceAt(r, linePixel(r, column, pos, i), c) > OUTER_FRAME_TOLERANCE) off++;
             }
             return off <= allowed;
         });
     };
-    if (left === area.left) for (let k = 0; k < max && right - left > 2 && clean(true, left); k++) left++;
-    if (right === area.left + area.width) for (let k = 0; k < max && right - left > 2 && clean(true, right - 1); k++) right--;
-    if (top === area.top) for (let k = 0; k < max && bottom - top > 2 && clean(false, top); k++) top++;
-    if (bottom === area.top + area.height) for (let k = 0; k < max && bottom - top > 2 && clean(false, bottom - 1); k++) bottom--;
-    return { left, top, width: right - left, height: bottom - top };
+    const areaEdges = { left: area.left, top: area.top, right: area.left + area.width, bottom: area.top + area.height };
+    return trimSides(cell, (e, column, edge, dir, side) => {
+        if (e[side] !== areaEdges[side]) return 0;
+        let k = 0;
+        while (k < max && size(e, column) - k > 2 && clean(e, column, edge + dir * k)) k++;
+        return k;
+    });
 }
 
 // Every side bordering a gutter (not the image edge) loses GUTTER_INSET_PX:
@@ -960,44 +993,30 @@ const GUTTER_LINE_TOLERANCE = 10;
 const GUTTER_LINE_FRACTION = 0.9;
 
 function trimGutterLines(r: Raster, cell: Box, gutter: RGB): Box {
-    let left = cell.left;
-    let top = cell.top;
-    let right = cell.left + cell.width;
-    let bottom = cell.top + cell.height;
-    const isGutter = (column: boolean, pos: number) => {
-        const from = column ? top : left;
-        const to = column ? bottom : right;
+    const isGutter = (e: Edges, column: boolean, pos: number) => {
+        const [from, to] = span(e, column);
         let sum = 0;
         let close = 0;
         for (let i = from; i < to; i++) {
-            const distance = distanceAt(r, column ? i * r.width + pos : pos * r.width + i, gutter);
+            const distance = distanceAt(r, linePixel(r, column, pos, i), gutter);
             sum += distance;
             if (distance <= GUTTER_LINE_TOLERANCE) close++;
         }
         const n = to - from;
         return n > 0 && (close >= n * GUTTER_LINE_FRACTION || sum / n <= GUTTER_LINE_TOLERANCE);
     };
-    // How many gutter lines a side starts with, from `edge` in direction
-    // `dir` - 0 when they run on past MAX_GUTTER_LINES.
-    const leading = (column: boolean, edge: number, dir: number) => {
+    // How many gutter lines a side starts with - none when they run on past
+    // MAX_GUTTER_LINES.
+    return trimSides(cell, (e, column, edge, dir, side) => {
+        if (onImageEdge(r, e, side) || size(e, column) <= 2 * MAX_GUTTER_LINES) return 0;
         let k = 0;
-        while (k <= MAX_GUTTER_LINES && isGutter(column, edge + dir * k)) k++;
+        while (k <= MAX_GUTTER_LINES && isGutter(e, column, edge + dir * k)) k++;
         return k > MAX_GUTTER_LINES ? 0 : k;
-    };
-    if (left > 0 && right - left > 2 * MAX_GUTTER_LINES) left += leading(true, left, 1);
-    if (right < r.width && right - left > 2 * MAX_GUTTER_LINES) right -= leading(true, right - 1, -1);
-    if (top > 0 && bottom - top > 2 * MAX_GUTTER_LINES) top += leading(false, top, 1);
-    if (bottom < r.height && bottom - top > 2 * MAX_GUTTER_LINES) bottom -= leading(false, bottom - 1, -1);
-    return { left, top, width: right - left, height: bottom - top };
+    });
 }
 
 function insetFromGutters(r: Raster, cell: Box): Box {
-    const i = GUTTER_INSET_PX;
-    const left = cell.left > 0 ? cell.left + i : cell.left;
-    const top = cell.top > 0 ? cell.top + i : cell.top;
-    const right = cell.left + cell.width < r.width ? cell.left + cell.width - i : cell.left + cell.width;
-    const bottom = cell.top + cell.height < r.height ? cell.top + cell.height - i : cell.top + cell.height;
-    return { left, top, width: right - left, height: bottom - top };
+    return trimSides(cell, (e, _column, _edge, _dir, side) => onImageEdge(r, e, side) ? 0 : GUTTER_INSET_PX);
 }
 
 // Between a gutter and a panel's frame, antialiasing leaves a line or two
@@ -1012,25 +1031,59 @@ const BLEND_STEP = 40;
 const BLEND_LINE_FRACTION = 0.75;
 
 function trimBlendLines(r: Raster, cell: Box, gutter: RGB): Box {
-    let left = cell.left;
-    let top = cell.top;
-    let right = cell.left + cell.width;
-    let bottom = cell.top + cell.height;
-    const isBlend = (column: boolean, pos: number, inner: number) => {
-        const from = column ? top : left;
-        const to = column ? bottom : right;
+    const isBlend = (e: Edges, column: boolean, pos: number, inner: number) => {
+        const [from, to] = span(e, column);
         let count = 0;
         for (let i = from; i < to; i++) {
-            const at = (q: number) => column ? i * r.width + q : q * r.width + i;
-            if (distanceAt(r, at(pos), gutter) <= distanceAt(r, at(inner), gutter) - BLEND_STEP) count++;
+            if (distanceAt(r, linePixel(r, column, pos, i), gutter) <= distanceAt(r, linePixel(r, column, inner, i), gutter) - BLEND_STEP) count++;
         }
         return to > from && count >= (to - from) * BLEND_LINE_FRACTION;
     };
-    for (let k = 0; k < MAX_BLEND_LINES && right - left > 2 && isBlend(true, left, left + 1); k++) left++;
-    for (let k = 0; k < MAX_BLEND_LINES && right - left > 2 && isBlend(true, right - 1, right - 2); k++) right--;
-    for (let k = 0; k < MAX_BLEND_LINES && bottom - top > 2 && isBlend(false, top, top + 1); k++) top++;
-    for (let k = 0; k < MAX_BLEND_LINES && bottom - top > 2 && isBlend(false, bottom - 1, bottom - 2); k++) bottom--;
-    return { left, top, width: right - left, height: bottom - top };
+    return trimSides(cell, (e, column, edge, dir) => {
+        let k = 0;
+        while (k < MAX_BLEND_LINES && size(e, column) - k > 2 && isBlend(e, column, edge + dir * k, edge + dir * (k + 1))) k++;
+        return k;
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Moving a cell's sides inward
+// ---------------------------------------------------------------------------
+
+interface Edges {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+}
+type Side = keyof Edges;
+
+// The cell with each side moved inward - left, right, top, bottom, in that
+// order - by the lines `lines` counts for it: `column` for the left and
+// right side, its outermost line at `edge`, inward in direction `dir`,
+// measured against the sides moved so far (`e`).
+function trimSides(cell: Box, lines: (e: Edges, column: boolean, edge: number, dir: number, side: Side) => number): Box {
+    const e: Edges = { left: cell.left, top: cell.top, right: cell.left + cell.width, bottom: cell.top + cell.height };
+    e.left += lines(e, true, e.left, 1, 'left');
+    e.right -= lines(e, true, e.right - 1, -1, 'right');
+    e.top += lines(e, false, e.top, 1, 'top');
+    e.bottom -= lines(e, false, e.bottom - 1, -1, 'bottom');
+    return { left: e.left, top: e.top, width: e.right - e.left, height: e.bottom - e.top };
+}
+
+// The extent of a line across the cell: a column's top to bottom, or a
+// row's left to right.
+function span(e: Edges, column: boolean): [number, number] {
+    return column ? [e.top, e.bottom] : [e.left, e.right];
+}
+
+// The cell's width (for a column side) or height.
+function size(e: Edges, column: boolean): number {
+    return column ? e.right - e.left : e.bottom - e.top;
+}
+
+function onImageEdge(r: Raster, e: Edges, side: Side): boolean {
+    return side === 'left' || side === 'top' ? e[side] <= 0 : e[side] >= (side === 'right' ? r.width : r.height);
 }
 
 // ---------------------------------------------------------------------------

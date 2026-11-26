@@ -18,13 +18,9 @@ block content
                     //- (the comic's "Tapping a notification opens").
                     if withNewPages.has(comic.id)
                         a.btn.btn-sm.btn-primary(href=`/reader/${comic.id}/open/notification` data-direction=comic.reading_direction title='Open the new pages, as set under "Tapping a notification opens"') New ›
-                    a.btn.btn-sm.btn-outline-secondary(href=`/comics/${comic.id}/settings` title='Reading mode, resume history, and ignored pages for this comic') Settings
-                    if !showAccountSwitch
-                        button.btn.btn-sm.btn-outline-warning.js-clear-btn(type='button' data-clear-url=`/clear/${comic.id}` data-clear-label=`Clear downloaded pages for "${comic.title}"` title='Wipe downloaded pages/panels to reclaim space or force a re-crawl - keeps the comic itself, no need to redo Select Elements') Clear
-                    button.btn.btn-sm.btn-outline-danger.js-delete-btn(type='button' data-delete-url=`/delete/${comic.id}` title='Remove this comic from your list - if shared with other accounts, it stays for them until everyone removes it') Delete
+                    //- Clear and Delete are on the comic's Settings page.
+                    a.btn.btn-sm.btn-outline-secondary(href=`/comics/${comic.id}/settings` title='Reading mode, notifications, history, ignored pages, Clear and Delete for this comic') Settings
 
     else
         p No comics yet.
 
-    script(src='/js/twoClickConfirm.js')
-    script(src='/js/comicList.js')

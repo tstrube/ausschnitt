@@ -401,18 +401,14 @@ export class ReaderCache {
 
     // Right after ignoring the current page: jumps past all of its panels
     // to the next page that isn't ignored - or, when it was the newest one,
-    // back to the last panel of the page before it that isn't (`back`).
-    // Null when every other page is ignored too.
-    async skipCurrentPage(): Promise<{ panel: Panel; back: boolean } | null> {
+    // back to the last panel of the page before it that isn't. Null when
+    // every other page is ignored too.
+    async skipCurrentPage(): Promise<Panel | null> {
         if (!this.page || !this.comic) return null;
         const nextPage = await this.firstNonIgnoredPage(this.page, 'next');
-        if (nextPage) {
-            const panel = await this.setPageAndPanels(nextPage, first);
-            return panel ? { panel, back: false } : null;
-        }
+        if (nextPage) return this.setPageAndPanels(nextPage, first);
         const prevPage = await this.firstNonIgnoredPage(this.page, 'back');
-        const panel = prevPage ? await this.setPageAndPanels(prevPage, last) : null;
-        return panel ? { panel, back: true } : null;
+        return prevPage ? this.setPageAndPanels(prevPage, last) : null;
     }
 
     async getNextPanel(): Promise<Panel | null> {

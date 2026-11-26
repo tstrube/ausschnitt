@@ -290,8 +290,6 @@ router.post('/:id/nav/:direction', async (req: Request, res: Response) => {
         || (req.body?.fromPanelId != null && clientFollowsBookmark(comic, req.body.fromPanelId));
 
     let panel: Panel | null = null;
-    // Ignore on the newest page lands on the page before it instead.
-    let ignoredNewest = false;
     switch (direction) {
         case 'next':
             panel = await readerCache.getNextPanel();
@@ -325,8 +323,7 @@ router.post('/:id/nav/:direction', async (req: Request, res: Response) => {
                 await readerCache.loadPanel(sourcePanel.page_id, sourcePanel.id);
                 break;
             }
-            panel = skipped.panel;
-            ignoredNewest = skipped.back;
+            panel = skipped;
             const ignoredPage = db.getPage(sourcePanel.page_id);
             if (ignoredPage) releaseIfIgnoredByAll(comic, ignoredPage);
             break;
@@ -370,8 +367,7 @@ router.post('/:id/nav/:direction', async (req: Request, res: Response) => {
     res.json({
         ...navResponse(req.user!.id, updatedComic, panel),
         // What the client's Undo needs to put things back.
-        ignoredPanelId: direction === 'ignore' && sourcePanel ? sourcePanel.id : undefined,
-        ignoredNewest
+        ignoredPanelId: direction === 'ignore' && sourcePanel ? sourcePanel.id : undefined
     });
 });
 

@@ -899,6 +899,33 @@ test('a band much thinner than the page\'s gutters is no gutter, even with edges
     ]);
 });
 
+test('a blank strip boxed in by a panel\'s own frame is no gutter', () => {
+    // A drawn browser window as one panel: a headline on its white page,
+    // a white strip, then a framed photo. The strip runs the panel's width
+    // but ends at its frame on both sides - with the column gutter right
+    // behind it - so it is space inside the panel, not a gap between two.
+    const width = 400, height = 600;
+    const buffer = Buffer.alloc(width * height * 3, 255);
+    const frame = (x0: number, y0: number, x1: number, y1: number) => {
+        fillRGB(buffer, width, x0, y0, x1, y0 + 3, [0, 0, 0]);
+        fillRGB(buffer, width, x0, y1 - 3, x1, y1, [0, 0, 0]);
+        fillRGB(buffer, width, x0, y0, x0 + 3, y1, [0, 0, 0]);
+        fillRGB(buffer, width, x1 - 3, y0, x1, y1, [0, 0, 0]);
+    };
+    frame(20, 20, 190, 580);
+    fillRGB(buffer, width, 23, 23, 187, 577, [150, 150, 150]);
+    frame(210, 20, 380, 580);
+    // Headline lettering: every line has ink, no gap through it.
+    for (let y = 30; y < 80; y += 3) {
+        for (let x = 220 + (y * 7) % 9; x < 370; x += 9) fillRGB(buffer, width, x, y, x + 4, y + 4, [0, 0, 0]);
+    }
+    frame(213, 110, 377, 577);
+    fillRGB(buffer, width, 216, 113, 374, 574, [120, 120, 120]);
+
+    const boxes = detectPanelBoxes(buffer, width, height, 3);
+    assert.deepEqual(boxes.map(b => [b.left, b.top, b.width, b.height]), [[21, 21, 168, 558], [211, 21, 168, 558]]);
+});
+
 test('lines of text on a white panel stay one panel', () => {
     // White page: gray panels above and below, between them a frameless
     // text panel - lines of "lettering" (thin strokes) with white gaps

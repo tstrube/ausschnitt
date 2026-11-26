@@ -171,6 +171,7 @@ router.get('/comics/:id/settings', (req: Request, res: Response) => {
         ignoredSort,
         ignoredSorts: IGNORED_SORTS,
         pageSize: PAGE_SIZE,
+        usage: formatBytes(db.getComicDiskUsageBytes(comicId)),
         formatDateTime
     });
 });
@@ -261,7 +262,7 @@ router.post('/clear/:id', (req: Request, res: Response) => {
 
     db.clearComicPages(comicId);
     ReaderCache.resetForComic(comicId);
-    res.redirect('/');
+    res.redirect(`/comics/${comicId}/settings`);
 });
 
 router.post('/clear-all', (req: Request, res: Response) => {

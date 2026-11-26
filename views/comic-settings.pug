@@ -126,4 +126,20 @@ block content
             noscript
                 button.btn.btn-sm.btn-primary(type='submit') Save
         p.small.text-muted "Default" follows your #[a(href='/settings') global settings].
+
+        //- Two-click buttons (js/comicList.js), outside the form: they post
+        //- on their own.
+        .settings-group-title Storage
+        .list-group.mb-3
+            if !showAccountSwitch
+                .list-group-item.settings-row
+                    span.settings-label Downloaded pages
+                        span.settings-hint Removes the cached images (#{usage})
+                    button.btn.btn-sm.btn-outline-warning.js-clear-btn(type='button' data-clear-url=`/clear/${comic.id}` data-clear-label='clear') Clear
+            .list-group-item.settings-row
+                span.settings-label Remove comic
+                    span.settings-hint= showAccountSwitch ? 'Removes the comic and your settings for it - other accounts reading it keep it' : 'Removes the comic with all its settings and cache'
+                button.btn.btn-sm.btn-outline-danger.js-delete-btn(type='button' data-delete-url=`/delete/${comic.id}`) Delete
+        script(src='/js/twoClickConfirm.js')
+        script(src='/js/comicList.js')
     script(src='/js/keepScroll.js')
