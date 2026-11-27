@@ -26,6 +26,11 @@ block body
         .reader-history-panel#historyPanel
             strong.small Resume history
             ul#historyList.list-unstyled.small
+            //- The hidden bottom bar's First/Latest (readerScroll.js).
+            if hideNav
+                .d-flex.gap-3.small.mt-1.mb-1
+                    button#historyFirstLink.btn.btn-link.btn-sm.p-0(type='button') ⏮ First page
+                    button#historyLatestLink.btn.btn-link.btn-sm.p-0(type='button') ⏭ Newest page
             a.small(href='/manual#bookmarks') What's this? →
         //- The banner overlays the top of the feed: it toggles after position
         //- reports, mid-scroll, and must never move the panels.

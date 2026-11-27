@@ -625,9 +625,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Both absent when the bottom bar is hidden (comic/global setting).
-    firstBtn?.addEventListener('click', () => jumpTo(`/reader/${comicId}/nav/first`, { panelId: mostVisiblePanelId }));
-    latestBtn?.addEventListener('click', () => jumpTo(`/reader/${comicId}/nav/latest`, { panelId: mostVisiblePanelId }));
+    // Both absent when the bottom bar is hidden (comic/global setting) -
+    // then the resume history panel has links doing the same.
+    const goFirst = () => jumpTo(`/reader/${comicId}/nav/first`, { panelId: mostVisiblePanelId });
+    const goLatest = () => jumpTo(`/reader/${comicId}/nav/latest`, { panelId: mostVisiblePanelId });
+    firstBtn?.addEventListener('click', goFirst);
+    latestBtn?.addEventListener('click', goLatest);
+    document.getElementById('historyFirstLink')?.addEventListener('click', goFirst);
+    document.getElementById('historyLatestLink')?.addEventListener('click', goLatest);
     // The first-open start dialog (reader-scroll.pug) - only there when the
     // bottom bar isn't: its buttons do what First/Latest would.
     const startDialog = document.getElementById('startDialog');
