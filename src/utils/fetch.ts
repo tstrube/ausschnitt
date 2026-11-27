@@ -83,6 +83,26 @@ export function isComicHomeUrl(url: string, comicUrl: string): boolean {
     return normalizeUrl(url) === normalizeUrl(comicUrl);
 }
 
+// Whether `page` is the comic's first or newest page, by its own nav: sites
+// leave out or disable First on the first page and Latest on the newest, or
+// point it at the page itself. The homepage shows the newest. False when
+// the page can't be read - it isn't known to be either.
+export async function isFirstOrNewestPage(comic: Comic, page: Page): Promise<boolean> {
+    if (isComicHomeUrl(page.original_url, comic.url)) return true;
+    let document: Document;
+    try {
+        document = await fetchDom(page.original_url);
+    } catch {
+        return false;
+    }
+    return [comic.selector_first, comic.selector_latest].some(selector => {
+        if (!selector) return false;
+        const navEl = matchElementByFingerprint(selector, document);
+        const href = navEl && resolveHref(navEl);
+        return !href || normalizeUrl(new URL(href, page.original_url).href) === normalizeUrl(page.original_url);
+    });
+}
+
 function hashBytes(buffer: Buffer): string {
     return crypto.createHash('sha256').update(buffer).digest('hex');
 }

@@ -39,12 +39,25 @@ self.addEventListener('push', event => {
         body: data.body || '',
         icon: '/icons/icon-192.png',
         badge: '/icons/badge-96.png',
-        data,
-        tag: data.tag,
-        renotify: !!data.tag
+        data: { ...data, shownAt: Date.now() },
+        tag: data.tag
     };
-    event.waitUntil(self.registration.showNotification(data.title || 'Ausschnitt', options));
+    event.waitUntil((async () => {
+        // A notification with the same tag (this comic's last one, never
+        // tapped) would be replaced silently - iOS ignores `renotify` - so
+        // the new one goes out as a fresh alert instead. Except for the same
+        // news arriving again within REPEAT_MS (one device subscribed
+        // twice): that replaces it quietly.
+        if (data.tag) {
+            const existing = await self.registration.getNotifications({ tag: data.tag });
+            const repeat = existing.some(n => n.data && Date.now() - n.data.shownAt < REPEAT_MS);
+            if (!repeat) existing.forEach(n => n.close());
+        }
+        await self.registration.showNotification(data.title || 'Ausschnitt', options);
+    })());
 });
+
+const REPEAT_MS = 60 * 1000;
 
 self.addEventListener('notificationclick', event => {
     event.notification.close();

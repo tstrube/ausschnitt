@@ -70,10 +70,10 @@ function initDb(): void {
             box_height INTEGER DEFAULT NULL
         );
 
-        -- "Resume history": checkpoints from Save Resume Point. source is
-        -- 'user' for the click itself, 'auto' for the snapshot of the
-        -- position it replaced (see snapshotLiveBookmarkIfReplacing) - the
-        -- two can land in the same millisecond.
+        -- "Resume history": resume points Save Resume Point replaced (see
+        -- keepReplacedResumePoint). source is no longer told apart: older
+        -- rows have 'auto' (the replaced position) or 'user' (the saved one,
+        -- no longer added); new rows 'user'.
         CREATE TABLE IF NOT EXISTS bookmark_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             comic_id INTEGER,
@@ -597,11 +597,9 @@ export interface BookmarkHistoryEntry {
     source: BookmarkSource;
 }
 
-// Written by "Save Resume Point" (source: 'user') and, right before it
-// overwrites the live bookmark, a snapshot of the position it replaces
-// (source: 'auto' - see snapshotLiveBookmarkIfReplacing in
-// routes/reader.ts): a short trail of checkpoints, not a record of every
-// page read. Capped at MAX_BOOKMARK_HISTORY per user and comic, oldest
+// Resume points "Save Resume Point" replaced, for finding your spot again
+// when re-reading (see keepReplacedResumePoint in routes/reader.ts). Not a
+// record of every page read. Capped at MAX_BOOKMARK_HISTORY per user and comic, oldest
 // dropped first.
 export const MAX_BOOKMARK_HISTORY = 10;
 

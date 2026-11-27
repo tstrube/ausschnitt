@@ -22,14 +22,12 @@ block content
                         span.badge.rounded-pill.text-bg-secondary.ms-1= t[2]
 
     if tab === 'history'
-        p.text-muted.small #{resumeHistory.total}/#{resumeHistoryCap} checkpoints from "Save Resume Point" in the reader - not the same as your saved #[a(href='/bookmarks') Bookmarks].
+        p.text-muted.small #{resumeHistory.total}/#{resumeHistoryCap} earlier reading spots, kept when you saved a new resume point in the reader - not the same as your saved #[a(href='/bookmarks') Bookmarks].
         if resumeHistory.entries.length
             ul.list-unstyled.small.aligned-rows.aligned-rows-2col
                 each entry in resumeHistory.entries
                     li
-                        .d-flex.align-items-center.gap-2
-                            span.text-muted #{formatDateTime(entry.created_at)}
-                            span.badge(class=entry.source === 'auto' ? 'bg-secondary' : 'bg-primary')= entry.source === 'auto' ? 'auto-saved' : 'manual'
+                        span.text-muted #{formatDateTime(entry.created_at)}
                         form(method='POST' action=`/comics/${comic.id}/bookmarks/${entry.id}/delete`)
                             button.btn.btn-sm.btn-outline-danger(type='submit' aria-label='Delete checkpoint' title='Delete checkpoint') ×
             if resumeHistory.total > pageSize
@@ -39,7 +37,7 @@ block content
                     if resumeHistoryPage * pageSize < resumeHistory.total
                         a.btn.btn-sm.btn-outline-secondary(href=`/comics/${comic.id}/settings?tab=history&resumeHistoryPage=${resumeHistoryPage + 1}`) Older →
         else
-            p.text-muted.small No resume checkpoints yet - use "Save Resume Point" in the reader.
+            p.text-muted.small Nothing yet - when you save a new resume point in the reader, the old one is kept here.
     else if tab === 'ignored'
         if ignored.length
             .btn-group.btn-group-sm.mb-3(role='group' aria-label='Sort ignored pages')

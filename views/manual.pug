@@ -89,8 +89,8 @@ block content
             under a name, or jump to one you saved earlier for this comic;
             elsewhere, the full bookmarks manager.
         li.
-            🕘 #[strong Resume history] - reader only; this comic's recent
-            "Save Resume Point" checkpoints.
+            🕘 #[strong Resume history] - reader only; your earlier reading
+            spots, kept when you saved a new resume point.
         li.
             🚫 #[strong Ignore] - reader only; hides the page you're looking at
             from now on. Tap once, then tap #[strong OK?] within 3
@@ -111,20 +111,26 @@ block content
         nothing to click.
     p.
         Jumping somewhere else - #[strong First], #[strong Latest], a
-        bookmark, or an old resume checkpoint - does #[em not] move your
+        bookmark, or a resume history entry - does #[em not] move your
         saved position; it's just a look around. While you're away from it,
         a banner says #[em "Jumped away from your last spot"] with two
         buttons: #[strong Resume] takes you back, and
         #[strong Save Resume Point] makes where you are now your new saved
         position. Reading your way back onto your saved position hides the
-        banner too, and saving carries on as normal from there.
+        banner too, and saving carries on as normal from there. One jump
+        needs no banner: a new-page notification opening the page right
+        after your saved position - you were caught up, so it's just
+        reading on, and your position follows.
     p.
-        Each #[strong Save Resume Point] also adds a checkpoint to this
-        comic's #[strong resume history] (the 🕘 panel), which keeps the 10
-        most recent. The position being replaced is added as well, so a
-        save never loses where you were before. Tapping a checkpoint only
-        takes a look, like a jump; the full list, with delete, is on the
-        #[strong History] tab of the comic's #[strong Settings] page.
+        When #[strong Save Resume Point] replaces your saved position, the
+        old one goes into this comic's #[strong resume history] (the 🕘
+        panel), which keeps the 10 most recent - handy when re-reading,
+        to find your original spot again. Not when it's within 5 pages of
+        a bookmark, another history entry, your new position, or the
+        comic's first or newest page - you can get back there anyway.
+        Tapping an entry only takes a look, like a jump; the full list,
+        with delete, is on the #[strong History] tab of the comic's
+        #[strong Settings] page.
     p.
         #[strong Bookmarks] are separate from all of that: named, permanent
         spots you create yourself, as many as you like. Open the 🔖 panel in
@@ -221,7 +227,7 @@ block content
             this comic's new pages, and where tapping its notification takes
             you. #[strong Default] follows your general settings - the hint
             under each setting shows what that currently is.
-        li #[strong History] - this comic's resume checkpoints; delete any you don't need.
+        li #[strong History] - this comic's resume history; delete any you don't need.
         li #[strong Ignored] - every page you've ignored, sortable by URL or date (↑/↓); #[strong Undo] brings one back.
 
     h2#managing Managing comics

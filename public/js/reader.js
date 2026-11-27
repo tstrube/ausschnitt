@@ -45,15 +45,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderHistory(entries) {
         historyList.innerHTML = '';
         if (!entries || !entries.length) {
-            historyList.innerHTML = '<li class="text-muted">No checkpoints yet - use "Save Resume Point".</li>';
+            historyList.innerHTML = '<li class="text-muted">Nothing yet - when you save a new resume point, the old one is kept here.</li>';
             return;
         }
         entries.forEach(entry => {
             const li = document.createElement('li');
             li.className = 'd-flex align-items-center justify-content-between gap-2 mb-1';
             const label = document.createElement('span');
-            const tag = entry.source === 'auto' ? ' (auto-saved)' : '';
-            label.textContent = formatRelativeTime(entry.created_at) + tag;
+            label.textContent = formatRelativeTime(entry.created_at);
             const goBtn = document.createElement('button');
             goBtn.className = 'btn btn-sm btn-outline-light';
             goBtn.type = 'button';

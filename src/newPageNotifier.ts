@@ -194,12 +194,18 @@ async function notifyNewComics(userId: number, comics: Comic[]): Promise<void> {
     const user = db.getUserById(userId);
     if (!user) return;
     if (comics.length > 1 && user.notify_combine) {
-        await sendToUser(userId, { title: 'Ausschnitt', body: describeNewComics(comics.map(c => c.title)), tag: 'new-pages' });
+        logSent(userId, 'new pages', await sendToUser(userId, { title: 'Ausschnitt', body: describeNewComics(comics.map(c => c.title)), tag: 'new-pages' }));
         return;
     }
     for (const comic of comics) {
-        await sendToUser(userId, { title: comic.title, body: 'New page available', comicId: comic.id, direction: comic.reading_direction, tag: `comic-${comic.id}` });
+        logSent(userId, `"${comic.title}"`, await sendToUser(userId, { title: comic.title, body: 'New page available', comicId: comic.id, direction: comic.reading_direction, tag: `comic-${comic.id}` }));
     }
+}
+
+// A delivery's outcome, for finding out where a missing notification got
+// lost: "sent" means the push service took it, not that it was shown.
+function logSent(userId: number, what: string, result: { sent: number; failed: number }): void {
+    console.log(`Notified user ${userId} about ${what}: ${result.sent} sent, ${result.failed} failed`);
 }
 
 // "QC and PTC have new pages", "QC, PTC and 2 more have new pages".

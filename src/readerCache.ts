@@ -399,6 +399,12 @@ export class ReaderCache {
         return this.setPageAndPanels(next ?? page, first);
     }
 
+    // The page after `page` that this user hasn't ignored, without moving
+    // the cursor (crawled if its link isn't stored yet).
+    async pageAfter(page: Page): Promise<Page | null> {
+        return this.comic ? this.firstNonIgnoredPage(page, 'next') : null;
+    }
+
     // Right after ignoring the current page: jumps past all of its panels
     // to the next page that isn't ignored - or, when it was the newest one,
     // back to the last panel of the page before it that isn't. Null when

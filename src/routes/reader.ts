@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import * as db from '../db';
 import path from 'path';
 import { ReaderCache } from '../readerCache';
-import { fetchAndStorePage, isComicHomeUrl, releaseIfIgnoredByAll } from '../utils/fetch';
+import { fetchAndStorePage, isComicHomeUrl, isFirstOrNewestPage, releaseIfIgnoredByAll } from '../utils/fetch';
 import { Panel, ReaderComic } from '../types';
 import { IMAGES_DIR } from '../paths';
 import sharp from 'sharp';
@@ -57,19 +57,43 @@ function isAtBookmark(comic: ReaderComic, panel: Panel): boolean {
     return comic.last_read_page === panel.page_id && comic.last_read_panel === panel.id;
 }
 
-// "Save Resume Point" overwrites the live bookmark, which ordinary reading
-// moves without creating a history checkpoint - so snapshot the position
-// it replaces into history first (unless it's already the newest entry).
-function snapshotLiveBookmarkIfReplacing(userId: number, comic: ReaderComic, newPageId: number, newPanelId: number): void {
+// When "Save Resume Point" (the banner) moves the resume point, the old one
+// goes into the resume history - for re-reading the comic: find your
+// original spot again after jumping away and saving elsewhere. Jumps
+// themselves never move the resume point (the banner shows instead), so at
+// the save it's still the spot you jumped from. Not kept when it's near
+// something you can get back to anyway: within HISTORY_NEAR_PAGES of a named bookmark,
+// a resume history entry, the new position, or the comic's first or newest
+// page. Distances follow the stored next/back links; where one isn't known
+// the walk stops there, and the page there is only taken for the first or
+// newest if its own nav says so (isFirstOrNewestPage - a fetch).
+const HISTORY_NEAR_PAGES = 5;
+
+async function keepReplacedResumePoint(userId: number, comic: ReaderComic, newPageId: number): Promise<void> {
     if (!comic.last_read_page || !comic.last_read_panel) return;
-    if (comic.last_read_page === newPageId && comic.last_read_panel === newPanelId) return;
+    const origin = db.getPage(comic.last_read_page);
+    if (!origin) return;
 
-    const [mostRecent] = db.getRecentBookmarkHistory(userId, comic.id, 1);
-    if (mostRecent && mostRecent.page_id === comic.last_read_page && mostRecent.panel_id === comic.last_read_panel) {
-        return;
+    const marked = new Set<number>([
+        newPageId,
+        ...db.getBookmarksForComic(userId, comic.id).map(b => b.page_id),
+        ...db.getRecentBookmarkHistory(userId, comic.id, db.MAX_BOOKMARK_HISTORY).map(h => h.page_id)
+    ]);
+    for (const direction of ['back', 'next'] as const) {
+        let page = origin;
+        for (let step = 0; ; step++) {
+            if (marked.has(page.id)) return;
+            const linkedId = direction === 'next' ? page.next_id : page.prev_id;
+            const linked = linkedId ? db.getPage(linkedId) : null;
+            if (!linked) {
+                if (await isFirstOrNewestPage(comic, page)) return;
+                break;
+            }
+            if (step === HISTORY_NEAR_PAGES) break;
+            page = linked;
+        }
     }
-
-    db.addBookmarkHistoryEntry(userId, comic.id, comic.last_read_page, comic.last_read_panel, 'auto');
+    db.addBookmarkHistoryEntry(userId, comic.id, comic.last_read_page, comic.last_read_panel);
 }
 
 // Whether a client that believes the live bookmark is `fromPanelId` is
@@ -289,6 +313,9 @@ router.post('/:id/nav/:direction', async (req: Request, res: Response) => {
     const wasAtBookmark = (!!sourcePanel && isAtBookmark(comic, sourcePanel))
         || (req.body?.fromPanelId != null && clientFollowsBookmark(comic, req.body.fromPanelId));
 
+    // On a comic never read before, First/Latest pick where reading starts
+    // (the scroll reader's start dialog): nothing to undo, no checkpoint.
+    const startsReading = !comic.last_read_page && (direction === 'first' || direction === 'latest');
     let panel: Panel | null = null;
     switch (direction) {
         case 'next':
@@ -339,22 +366,16 @@ router.post('/:id/nav/:direction', async (req: Request, res: Response) => {
         return;
     }
 
-    if (direction === 'bookmark') {
-        snapshotLiveBookmarkIfReplacing(req.user!.id, comic, panel.page_id, panel.id);
+    // Save Resume Point: maybe keep the position it replaces.
+    if (direction === 'bookmark' && !(comic.last_read_page === panel.page_id && comic.last_read_panel === panel.id)) {
+        await keepReplacedResumePoint(req.user!.id, comic, panel.page_id)
+            .catch(err => console.error('Failed to keep the replaced resume point:', err));
     }
 
-    // On a comic never read before, First/Latest pick where reading starts
-    // (the scroll reader's start dialog): nothing to undo, no checkpoint.
-    const startsReading = !comic.last_read_page && (direction === 'first' || direction === 'latest');
     const shouldPersist = ALWAYS_BOOKMARK_DIRECTIONS.includes(direction) || startsReading
         || (CONDITIONAL_BOOKMARK_DIRECTIONS.includes(direction) && wasAtBookmark);
     if (shouldPersist) {
         db.updateLastRead(req.user!.id, comic.id, panel.page_id, panel.id);
-    }
-
-    // Only "Save Resume Point" creates a checkpoint, never the auto-save.
-    if (direction === 'bookmark') {
-        db.addBookmarkHistoryEntry(req.user!.id, comic.id, panel.page_id, panel.id);
     }
 
     // Re-read so last_read_page/panel reflect what was just persisted.
@@ -537,6 +558,15 @@ router.get('/:id/open/:target', async (req: Request, res: Response) => {
         if (await readerCache.getLastPanel()) readerCache.getFirstPanelOfCurrentPage();
     } else {
         await readerCache.getResumePanel();
+    }
+    // Opening the page right after the resume point - the reader was caught
+    // up when the new pages came - is just reading on: the resume point
+    // follows, no banner.
+    const landed = readerCache.getCurrentPanel();
+    if (target !== 'resume' && comic?.last_read_page && landed) {
+        const resumePage = db.getPage(comic.last_read_page);
+        const next = resumePage ? await readerCache.pageAfter(resumePage) : null;
+        if (next && next.id === landed.page_id) db.updateLastRead(req.user!.id, comicId, landed.page_id, landed.id);
     }
 
     res.redirect(`/reader/${comicId}`);

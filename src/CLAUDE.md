@@ -80,14 +80,24 @@
   `ReaderCache.resetForComic(comicId)` invalidates every subscriber's
   instance after a shared-data change; `ReaderCache.reset(userId,
   comicId)` just one.
-- **Resume history** (UI name; `bookmark_history` in code): checkpoints
-  from "Save Resume Point", capped at `db.MAX_BOOKMARK_HISTORY` (10) per
-  account and comic, oldest dropped first. Restoring one
-  (`POST /reader/:id/bookmarks/:id/restore`) is a preview like
-  First/Latest - it never touches the live bookmark or adds an entry.
-  "Save Resume Point" first snapshots the position it replaces
-  (`snapshotLiveBookmarkIfReplacing`, skipped if it's already the newest
-  entry); `source` is `'user'` for the click, `'auto'` for the snapshot.
+- **Resume history** (UI name; `bookmark_history` in code): for
+  re-reading - the old resume point, kept when "Save Resume Point" on the
+  banner moves it (`keepReplacedResumePoint`); nothing is ever saved
+  without that tap. Jumps never move the resume point
+  (the banner shows), so at the save it's still the spot jumped from.
+  Skipped within `HISTORY_NEAR_PAGES` (5) of a named bookmark, a history
+  entry, the new position, or the comic's first/newest page - walked
+  along stored next/back links; where a link is unknown the page there
+  counts as first/newest only if its own nav says so
+  (`isFirstOrNewestPage`, a fetch). Nothing else adds entries. Capped at
+  `db.MAX_BOOKMARK_HISTORY` (10) per account and comic, oldest dropped
+  first. Restoring one (`POST /reader/:id/bookmarks/:id/restore`) is a
+  preview like First/Latest - it never touches the live bookmark.
+  `source` is no longer told apart (new rows `'user'`; older ones may be
+  `'auto'`) and isn't shown.
+  Exception to "jumps show the banner": a notification opening the page
+  right after the resume point (caught up when the new pages came) moves
+  the resume point along - just reading on.
   A separate feature from named bookmarks, with its own icon (🕘) and name.
 - **Named bookmarks**: `bookmarks` table - permanent, user-named spots.
   Saved from the reader's 🔖 panel (`POST /reader/:id/bookmarks`, name
